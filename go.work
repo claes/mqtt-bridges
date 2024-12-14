@@ -3,6 +3,7 @@ go 1.22.8
 use (
 	./common
 	./samsungtv-mqtt
+	./rotel-mqtt
 	./snapcast-mqtt
 	./routeros-mqtt
 )
