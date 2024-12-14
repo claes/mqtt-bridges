@@ -1,0 +1,2 @@
+Issues to depend on common module from flake by referring to it using replace directive in go.mod
+Right now the common dependency is not used
