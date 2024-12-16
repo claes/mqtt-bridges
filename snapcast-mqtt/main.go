@@ -55,7 +55,7 @@ func main() {
 	fmt.Printf("Started\n")
 
 	ctx := context.TODO()
-	go bridge.MainLoop(ctx)
+	go bridge.EventLoop(ctx)
 	<-c
 	bridge.SnapClient.Close()
 	fmt.Printf("Shut down\n")

@@ -218,9 +218,9 @@ func (bridge *SnapcastMQTTBridge) publishGroupStatus(groupStatus SnapcastGroup) 
 	}
 }
 
-func (bridge *SnapcastMQTTBridge) processServerStatus(publishGroup, publishClient, publishStream bool) {
+func (bridge *SnapcastMQTTBridge) processServerStatus(ctx context.Context, publishGroup, publishClient, publishStream bool) {
 
-	res, err := bridge.SnapClient.Send(context.Background(), snapcast.MethodServerGetStatus, struct{}{})
+	res, err := bridge.SnapClient.Send(ctx, snapcast.MethodServerGetStatus, struct{}{})
 	if err != nil {
 		slog.Error("Error when requesting server status", "error", err)
 	}
@@ -242,9 +242,9 @@ func (bridge *SnapcastMQTTBridge) processServerStatus(publishGroup, publishClien
 	bridge.ServerStatus = *serverStatus
 }
 
-func (bridge *SnapcastMQTTBridge) processGroupStatus(groupID string) {
+func (bridge *SnapcastMQTTBridge) processGroupStatus(ctx context.Context, groupID string) {
 
-	res, err := bridge.SnapClient.Send(context.Background(), snapcast.MethodGroupGetStatus, &snapcast.GroupGetStatusRequest{ID: groupID})
+	res, err := bridge.SnapClient.Send(ctx, snapcast.MethodGroupGetStatus, &snapcast.GroupGetStatusRequest{ID: groupID})
 	if err != nil {
 		slog.Error("Error when requesting group status", "error", err)
 	}
@@ -266,7 +266,7 @@ func (bridge *SnapcastMQTTBridge) processGroupStatus(groupID string) {
 	bridge.ServerStatus.Groups[groupStatus.GroupID] = *groupStatus
 }
 
-func (bridge *SnapcastMQTTBridge) MainLoop(ctx context.Context) {
+func (bridge *SnapcastMQTTBridge) EventLoop(ctx context.Context) {
 
 	var notify = &snapclient.Notifications{
 		MsgReaderErr:          make(chan error),
@@ -285,39 +285,37 @@ func (bridge *SnapcastMQTTBridge) MainLoop(ctx context.Context) {
 	if err != nil {
 		slog.Error("Error listening for notifications on snapclient", "error", err)
 	}
+	defer close(wsClose)
 
-	go func() {
-		for {
-			select {
+	bridge.processServerStatus(ctx, true, true, true)
 
-			case <-notify.StreamOnUpdate:
-				bridge.processServerStatus(false, false, true)
+	for {
+		select {
 
-			case <-notify.ClientOnConnect:
-				bridge.processServerStatus(false, true, false)
-			case <-notify.ClientOnDisconnect:
-				bridge.processServerStatus(false, true, false)
-			case <-notify.ClientOnNameChanged:
-				bridge.processServerStatus(false, true, false)
-			case <-notify.ClientOnVolumeChanged:
-				bridge.processServerStatus(false, true, false) //todo update value directly?
+		case <-notify.StreamOnUpdate:
+			bridge.processServerStatus(ctx, false, false, true)
 
-			case m := <-notify.GroupOnMute:
-				bridge.processGroupStatus(m.ID) //todo update value directly?
-			case <-notify.GroupOnNameChanged:
-				bridge.processServerStatus(true, true, false)
-			case <-notify.GroupOnStreamChanged:
-				bridge.processServerStatus(true, true, false)
+		case <-notify.ClientOnConnect:
+			bridge.processServerStatus(ctx, false, true, false)
+		case <-notify.ClientOnDisconnect:
+			bridge.processServerStatus(ctx, false, true, false)
+		case <-notify.ClientOnNameChanged:
+			bridge.processServerStatus(ctx, false, true, false)
+		case <-notify.ClientOnVolumeChanged:
+			bridge.processServerStatus(ctx, false, true, false) //todo update value directly?
 
-			case <-notify.ServerOnUpdate:
-				bridge.processServerStatus(true, true, true)
-			case m := <-notify.MsgReaderErr:
-				slog.Debug("Message reader error", "error", m.Error())
-				continue
-			}
+		case m := <-notify.GroupOnMute:
+			bridge.processGroupStatus(ctx, m.ID) //todo update value directly?
+		case <-notify.GroupOnNameChanged:
+			bridge.processServerStatus(ctx, true, true, false)
+		case <-notify.GroupOnStreamChanged:
+			bridge.processServerStatus(ctx, true, true, false)
+
+		case <-notify.ServerOnUpdate:
+			bridge.processServerStatus(ctx, true, true, true)
+		case m := <-notify.MsgReaderErr:
+			slog.Debug("Message reader error", "error", m.Error())
+			continue
 		}
-	}()
-	bridge.processServerStatus(true, true, true)
-
-	panic(<-wsClose)
+	}
 }
