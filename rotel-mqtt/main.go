@@ -33,7 +33,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	serialPort, err := lib.CreateSerialPort(*serialDevice)
+	rotelClientConfig := lib.RotelClientConfig{SerialDevice: *serialDevice}
+
+	serialPort, err := lib.CreateSerialPort(rotelClientConfig)
 	if err != nil {
 		slog.Error("Error creating serial device", "error", err, "serialDevice", *serialDevice)
 	}

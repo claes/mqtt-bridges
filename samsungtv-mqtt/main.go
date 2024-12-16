@@ -39,7 +39,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	bridge := lib.NewSamsungRemoteMQTTBridge(tvIPAddress, mqttClient, *topicPrefix)
+	samsungTvClientConfig := lib.SamsungTVClientConfig{TVIPAddress: *tvIPAddress}
+
+	bridge := lib.NewSamsungRemoteMQTTBridge(samsungTvClientConfig, mqttClient, *topicPrefix)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

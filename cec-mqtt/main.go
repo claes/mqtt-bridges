@@ -14,7 +14,7 @@ import (
 
 var debug *bool
 
-func MainLoop(bridge lib.CecMQTTBridge) {
+func MainLoop(bridge lib.CECMQTTBridge) {
 	for {
 		time.Sleep(10 * time.Second)
 		bridge.CECConnection.Transmit("10:8F")
@@ -49,7 +49,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	bridge := lib.NewCecMQTTBridge(lib.CreateCECConnection(*cecName, *cecDeviceName),
+	cecClientConfig := lib.CECClientConfig{CECName: *cecName, CECDeviceName: *cecDeviceName}
+	bridge := lib.NewCECMQTTBridge(lib.CreateCECConnection(cecClientConfig),
 		lib.CreateMQTTClient(*mqttBroker), *topicPrefix)
 
 	ctx := context.Background()

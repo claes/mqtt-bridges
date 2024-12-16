@@ -33,7 +33,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	pulseClient, err := lib.CreatePulseClient(*pulseServer)
+	pulseClientConfig := lib.PulseClientConfig{PulseServerAddress: *pulseServer}
+
+	pulseClient, err := lib.CreatePulseClient(*&pulseClientConfig)
 	if err != nil {
 		slog.Error("Error creating pulse client", "error", err, "pulseServer", *pulseServer)
 		os.Exit(1)

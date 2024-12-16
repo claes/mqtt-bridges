@@ -35,14 +35,18 @@ type RotelMQTTBridge struct {
 	State           *RotelState
 }
 
-func CreateSerialPort(serialDevice string) (*serial.Port, error) {
-	serialConfig := &serial.Config{Name: serialDevice, Baud: 115200}
+type RotelClientConfig struct {
+	SerialDevice string
+}
+
+func CreateSerialPort(config RotelClientConfig) (*serial.Port, error) {
+	serialConfig := &serial.Config{Name: config.SerialDevice, Baud: 115200}
 	serialPort, err := serial.OpenPort(serialConfig)
 	if err != nil {
-		slog.Error("Could not open port", "serialDevice", serialDevice, "error", err)
+		slog.Error("Could not open port", "serialDevice", config.SerialDevice, "error", err)
 		return nil, err
 	} else {
-		slog.Info("Connected to serial device", "serialDevice", serialDevice)
+		slog.Info("Connected to serial device", "serialDevice", config.SerialDevice)
 	}
 	return serialPort, nil
 }

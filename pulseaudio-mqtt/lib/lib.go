@@ -2,7 +2,6 @@ package lib
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"regexp"
 	"strconv"
@@ -102,20 +101,6 @@ type DetectedChanges struct {
 	sourcesChanged bool
 }
 
-func (d DetectedChanges) String2() string {
-	return fmt.Sprintf(
-		"DetectedChanges{defaultSinkChanged: %v, activeProfileChanged: %v, defaultSourceChanged: %v, sinksChanged: %v, sinkInputsChanged: %v, clientsChanged: %v, cardsChanged: %v, sourcesChanged: %v}",
-		d.defaultSinkChanged,
-		d.activeProfileChanged,
-		d.defaultSourceChanged,
-		d.sinksChanged,
-		d.sinkInputsChanged,
-		d.clientsChanged,
-		d.cardsChanged,
-		d.sourcesChanged,
-	)
-}
-
 func (d DetectedChanges) AnyChanged() bool {
 	return d.defaultSinkChanged ||
 		d.activeProfileChanged ||
@@ -127,13 +112,17 @@ func (d DetectedChanges) AnyChanged() bool {
 		d.sourcesChanged
 }
 
-func CreatePulseClient(pulseServer string) (*PulseClient, error) {
-	pulseClient, err := NewPulseClient(ClientServerString(pulseServer))
+type PulseClientConfig struct {
+	PulseServerAddress string
+}
+
+func CreatePulseClient(config PulseClientConfig) (*PulseClient, error) {
+	pulseClient, err := NewPulseClient(ClientServerString(config.PulseServerAddress))
 	if err != nil {
-		slog.Error("Error while initializing pulseclient", "pulseServer", pulseServer)
+		slog.Error("Error while initializing pulseclient", "pulseServer", config.PulseServerAddress)
 		return nil, err
 	} else {
-		slog.Info("Initialized pulseclient", "pulseServer", pulseServer)
+		slog.Info("Initialized pulseclient", "pulseServer", config.PulseServerAddress)
 	}
 	return pulseClient, nil
 }

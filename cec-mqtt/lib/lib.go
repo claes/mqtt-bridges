@@ -6,8 +6,9 @@ import (
 	"log/slog"
 	"regexp"
 	"strconv"
-	"strings"
 	"sync"
+
+	common "github.com/claes/mqtt-bridges/common"
 
 	cec "github.com/claes/cec"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -15,19 +16,23 @@ import (
 
 var debug *bool
 
-type CecMQTTBridge struct {
+type CECMQTTBridge struct {
 	MQTTClient    mqtt.Client
 	CECConnection *cec.Connection
 	TopicPrefix   string
 }
 
-func CreateCECConnection(cecName, cecDeviceName string) *cec.Connection {
-	slog.Info("Initializing CEC connection", "cecName", cecName, "cecDeviceName", cecDeviceName)
+type CECClientConfig struct {
+	CECName, CECDeviceName string
+}
 
-	cecConnection, err := cec.Open(cecName, cecDeviceName)
+func CreateCECConnection(config CECClientConfig) *cec.Connection {
+	slog.Info("Initializing CEC connection", "cecName", config.CECName, "cecDeviceName", config.CECDeviceName)
+
+	cecConnection, err := cec.Open(config.CECName, config.CECDeviceName)
 	if err != nil {
 		slog.Error("Could not connect to CEC device",
-			"cecName", cecName, "cecDeviceName", cecDeviceName, "error", err)
+			"cecName", config.CECName, "cecDeviceName", config.CECDeviceName, "error", err)
 		panic(err)
 	}
 
@@ -47,18 +52,10 @@ func CreateMQTTClient(mqttBroker string) mqtt.Client {
 	return client
 }
 
-func prefixify(topicPrefix, subtopic string) string {
-	if len(strings.TrimSpace(topicPrefix)) > 0 {
-		return topicPrefix + "/" + subtopic
-	} else {
-		return subtopic
-	}
-}
-
-func NewCecMQTTBridge(cecConnection *cec.Connection, mqttClient mqtt.Client, topicPrefix string) *CecMQTTBridge {
+func NewCECMQTTBridge(cecConnection *cec.Connection, mqttClient mqtt.Client, topicPrefix string) *CECMQTTBridge {
 
 	slog.Info("Creating CEC MQTT bridge")
-	bridge := &CecMQTTBridge{
+	bridge := &CECMQTTBridge{
 		MQTTClient:    mqttClient,
 		CECConnection: cecConnection,
 		TopicPrefix:   topicPrefix,
@@ -69,7 +66,7 @@ func NewCecMQTTBridge(cecConnection *cec.Connection, mqttClient mqtt.Client, top
 		"cec/command/tx": bridge.onCommandSend,
 	}
 	for key, function := range funcs {
-		token := mqttClient.Subscribe(prefixify(topicPrefix, key), 0, function)
+		token := mqttClient.Subscribe(common.Prefixify(topicPrefix, key), 0, function)
 		token.Wait()
 	}
 
@@ -78,7 +75,7 @@ func NewCecMQTTBridge(cecConnection *cec.Connection, mqttClient mqtt.Client, top
 	return bridge
 }
 
-func (bridge *CecMQTTBridge) initialize() {
+func (bridge *CECMQTTBridge) initialize() {
 	cecDevices := bridge.CECConnection.List()
 	for key, value := range cecDevices {
 		slog.Info("Connected device",
@@ -98,12 +95,12 @@ func (bridge *CecMQTTBridge) initialize() {
 	}
 }
 
-func (bridge *CecMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MQTTClient.Publish(prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
+func (bridge *CECMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
+	token := bridge.MQTTClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
 	token.Wait()
 }
 
-func (bridge *CecMQTTBridge) PublishCommands(ctx context.Context) {
+func (bridge *CECMQTTBridge) PublishCommands(ctx context.Context) {
 	bridge.CECConnection.Commands = make(chan *cec.Command, 10) // Buffered channel
 	for {
 		select {
@@ -117,7 +114,7 @@ func (bridge *CecMQTTBridge) PublishCommands(ctx context.Context) {
 	}
 }
 
-func (bridge *CecMQTTBridge) PublishKeyPresses(ctx context.Context) {
+func (bridge *CECMQTTBridge) PublishKeyPresses(ctx context.Context) {
 	bridge.CECConnection.KeyPresses = make(chan *cec.KeyPress, 10) // Buffered channel
 
 	for {
@@ -134,7 +131,7 @@ func (bridge *CecMQTTBridge) PublishKeyPresses(ctx context.Context) {
 	}
 }
 
-func (bridge *CecMQTTBridge) PublishSourceActivations(ctx context.Context) {
+func (bridge *CECMQTTBridge) PublishSourceActivations(ctx context.Context) {
 	bridge.CECConnection.SourceActivations = make(chan *cec.SourceActivation, 10) // Buffered channel
 
 	for {
@@ -152,7 +149,7 @@ func (bridge *CecMQTTBridge) PublishSourceActivations(ctx context.Context) {
 	}
 }
 
-func (bridge *CecMQTTBridge) PublishMessages(ctx context.Context, logOnly bool) {
+func (bridge *CECMQTTBridge) PublishMessages(ctx context.Context, logOnly bool) {
 
 	pattern := `^(>>|<<)\s([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)`
 	regex, err := regexp.Compile(pattern)
@@ -189,7 +186,7 @@ func (bridge *CecMQTTBridge) PublishMessages(ctx context.Context, logOnly bool) 
 
 var sendMutex sync.Mutex
 
-func (bridge *CecMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Message) {
+func (bridge *CECMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Message) {
 	sendMutex.Lock()
 	defer sendMutex.Unlock()
 
@@ -204,7 +201,7 @@ func (bridge *CecMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Mess
 	}
 }
 
-func (bridge *CecMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
+func (bridge *CECMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
 	sendMutex.Lock()
 	defer sendMutex.Unlock()
 

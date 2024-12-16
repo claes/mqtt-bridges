@@ -13,6 +13,119 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+type SamsungRemoteMQTTBridge struct {
+	MQTTClient  mqtt.Client
+	TopicPrefix string
+	Controller  *SamsungController
+	NetworkInfo *NetworkInfo
+	TVInfo      *TVInfo
+}
+
+type SamsungTVClientConfig struct {
+	TVIPAddress string
+}
+
+func NewSamsungRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Client, topicPrefix string) *SamsungRemoteMQTTBridge {
+
+	networkInfo, err := getNetworkInformations()
+	if err != nil {
+		panic(err)
+	}
+
+	tv := &TVInfo{
+		IP: net.ParseIP(config.TVIPAddress),
+	}
+
+	controller := newSamsungController()
+	err = controller.connect(networkInfo, tv)
+	if err != nil {
+		slog.Error("Could not connect to Samsung TV (it may be off)", "ip", config.TVIPAddress, "error", err)
+		reconnectSamsungTV = true
+	}
+	slog.Debug("Connected to Samsung TV", "ip", config.TVIPAddress)
+
+	bridge := &SamsungRemoteMQTTBridge{
+		MQTTClient:  mqttClient,
+		TopicPrefix: topicPrefix,
+		Controller:  controller,
+		NetworkInfo: networkInfo,
+		TVInfo:      tv,
+	}
+
+	funcs := map[string]func(client mqtt.Client, message mqtt.Message){
+		"samsungremote/key/send":          bridge.onKeySend,
+		"samsungremote/key/reconnectsend": bridge.onKeyReconnectSend,
+	}
+	for key, function := range funcs {
+		token := mqttClient.Subscribe(common.Prefixify(topicPrefix, key), 0, function)
+		token.Wait()
+	}
+	time.Sleep(2 * time.Second)
+	return bridge
+}
+
+var reconnectSamsungTV = false
+
+func (bridge *SamsungRemoteMQTTBridge) reconnectIfNeeded() {
+	if reconnectSamsungTV {
+		err := bridge.Controller.connect(bridge.NetworkInfo, bridge.TVInfo)
+		if err != nil {
+			slog.Debug("Could not reconnect", "error", err)
+		} else {
+			slog.Debug("Reconnection successful")
+			reconnectSamsungTV = false
+		}
+	}
+}
+
+var sendMutex sync.Mutex
+
+func (bridge *SamsungRemoteMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
+	sendMutex.Lock()
+	defer sendMutex.Unlock()
+
+	command := string(message.Payload())
+	if command != "" {
+		bridge.PublishMQTT("samsungremote/key/send", "", false)
+		slog.Debug("Sending key", "key", command)
+
+		err := bridge.Controller.sendKey(bridge.NetworkInfo, bridge.TVInfo, command)
+		if err != nil {
+			slog.Debug("Sending key, attempt reconnect", "key", command)
+			reconnectSamsungTV = true
+		}
+	}
+}
+
+func (bridge *SamsungRemoteMQTTBridge) onKeyReconnectSend(client mqtt.Client, message mqtt.Message) {
+	sendMutex.Lock()
+	defer sendMutex.Unlock()
+
+	command := string(message.Payload())
+	if command != "" {
+		bridge.PublishMQTT("samsungremote/key/reconnectsend", "", false)
+		slog.Debug("Sending key", "key", command)
+
+		reconnectSamsungTV = true
+		bridge.reconnectIfNeeded()
+		bridge.Controller.sendKey(bridge.NetworkInfo, bridge.TVInfo, command)
+	}
+}
+
+func (bridge *SamsungRemoteMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
+	token := bridge.MQTTClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
+	token.Wait()
+}
+
+func (bridge *SamsungRemoteMQTTBridge) MainLoop() {
+	go func() {
+		for {
+			time.Sleep(8 * time.Second)
+			bridge.reconnectIfNeeded()
+		}
+	}()
+}
+
 // TVInfo represents a remote TV.
 type TVInfo struct {
 	IP net.IP
@@ -24,8 +137,8 @@ type NetworkInfo struct {
 	MAC string
 }
 
-// Controller is the base interface implemented by vendor specific TVs.
-type Controller interface {
+// controller is the base interface implemented by vendor specific TVs.
+type controller interface {
 	Connect(emitter *NetworkInfo, receiver *TVInfo) error
 	SendKey(emitter *NetworkInfo, receiver *TVInfo, key string) error
 	Close() error
@@ -72,16 +185,16 @@ type SamsungController struct {
 	handle     *net.TCPConn
 }
 
-// NewSamsungController instantiates a new controller for samsung smart TVs.
-func NewSamsungController() *SamsungController {
+// newSamsungController instantiates a new controller for samsung smart TVs.
+func newSamsungController() *SamsungController {
 	return &SamsungController{
 		appString:  "iphone..iapp.samsung",
 		remoteName: "MQTT Bridge",
 	}
 }
 
-// Connect initialize the connection.
-func (controller *SamsungController) Connect(emitter *NetworkInfo, receiver *TVInfo) error {
+// connect initialize the connection.
+func (controller *SamsungController) connect(emitter *NetworkInfo, receiver *TVInfo) error {
 	conn, err := net.DialTCP("tcp", &net.TCPAddr{
 		IP: emitter.IP,
 	}, &net.TCPAddr{
@@ -118,8 +231,8 @@ func (controller *SamsungController) Connect(emitter *NetworkInfo, receiver *TVI
 	return err
 }
 
-// SendKey sends a key to the TV.
-func (controller *SamsungController) SendKey(emitter *NetworkInfo, receiver *TVInfo, key string) error {
+// sendKey sends a key to the TV.
+func (controller *SamsungController) sendKey(emitter *NetworkInfo, receiver *TVInfo, key string) error {
 	encoding := base64.StdEncoding
 	encodedKey := encoding.EncodeToString([]byte(key))
 
@@ -135,113 +248,4 @@ func (controller *SamsungController) SendKey(emitter *NetworkInfo, receiver *TVI
 func (controller *SamsungController) Close() error {
 	slog.Info("Closing controller")
 	return controller.handle.Close()
-}
-
-type SamsungRemoteMQTTBridge struct {
-	MQTTClient  mqtt.Client
-	TopicPrefix string
-	Controller  *SamsungController
-	NetworkInfo *NetworkInfo
-	TVInfo      *TVInfo
-}
-
-func NewSamsungRemoteMQTTBridge(tvIPAddress *string, mqttClient mqtt.Client, topicPrefix string) *SamsungRemoteMQTTBridge {
-
-	networkInfo, err := getNetworkInformations()
-	if err != nil {
-		panic(err)
-	}
-
-	tv := &TVInfo{
-		IP: net.ParseIP(*tvIPAddress),
-	}
-
-	controller := NewSamsungController()
-	err = controller.Connect(networkInfo, tv)
-	if err != nil {
-		slog.Error("Could not connect to Samsung TV (it may be off)", "ip", *tvIPAddress, "error", err)
-		reconnectSamsungTV = true
-	}
-	slog.Debug("Connected to Samsung TV", "ip", *tvIPAddress)
-
-	bridge := &SamsungRemoteMQTTBridge{
-		MQTTClient:  mqttClient,
-		TopicPrefix: topicPrefix,
-		Controller:  controller,
-		NetworkInfo: networkInfo,
-		TVInfo:      tv,
-	}
-
-	funcs := map[string]func(client mqtt.Client, message mqtt.Message){
-		"samsungremote/key/send":          bridge.onKeySend,
-		"samsungremote/key/reconnectsend": bridge.onKeyReconnectSend,
-	}
-	for key, function := range funcs {
-		token := mqttClient.Subscribe(common.Prefixify(topicPrefix, key), 0, function)
-		token.Wait()
-	}
-	time.Sleep(2 * time.Second)
-	return bridge
-}
-
-var reconnectSamsungTV = false
-
-func (bridge *SamsungRemoteMQTTBridge) reconnectIfNeeded() {
-	if reconnectSamsungTV {
-		err := bridge.Controller.Connect(bridge.NetworkInfo, bridge.TVInfo)
-		if err != nil {
-			slog.Debug("Could not reconnect", "error", err)
-		} else {
-			slog.Debug("Reconnection successful")
-			reconnectSamsungTV = false
-		}
-	}
-}
-
-var sendMutex sync.Mutex
-
-func (bridge *SamsungRemoteMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
-
-	command := string(message.Payload())
-	if command != "" {
-		bridge.PublishMQTT("samsungremote/key/send", "", false)
-		slog.Debug("Sending key", "key", command)
-
-		err := bridge.Controller.SendKey(bridge.NetworkInfo, bridge.TVInfo, command)
-		if err != nil {
-			slog.Debug("Sending key, attempt reconnect", "key", command)
-			reconnectSamsungTV = true
-		}
-	}
-}
-
-func (bridge *SamsungRemoteMQTTBridge) onKeyReconnectSend(client mqtt.Client, message mqtt.Message) {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
-
-	command := string(message.Payload())
-	if command != "" {
-		bridge.PublishMQTT("samsungremote/key/reconnectsend", "", false)
-		slog.Debug("Sending key", "key", command)
-
-		reconnectSamsungTV = true
-		bridge.reconnectIfNeeded()
-		bridge.Controller.SendKey(bridge.NetworkInfo, bridge.TVInfo, command)
-	}
-}
-
-func (bridge *SamsungRemoteMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MQTTClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
-	token.Wait()
-}
-
-func (bridge *SamsungRemoteMQTTBridge) MainLoop() {
-	go func() {
-		for {
-			time.Sleep(8 * time.Second)
-			bridge.reconnectIfNeeded()
-		}
-	}()
 }
