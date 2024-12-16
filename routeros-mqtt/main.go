@@ -57,7 +57,7 @@ func main() {
 	ctx := context.TODO()
 
 	fmt.Printf("Started\n")
-	go bridge.MainLoop(ctx)
+	go bridge.EventLoop(ctx)
 	<-c
 	bridge.RouterOSClient.Close()
 	fmt.Printf("Shut down\n")

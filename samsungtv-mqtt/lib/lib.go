@@ -122,7 +122,7 @@ func (bridge *SamsungTVRemoteMQTTBridge) EventLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("Closing down SamsungTVMQTTBridge event loop")
+			slog.Info("Closing down SamsungTVRemoteMQTTBridge event loop")
 			return
 		case <-time.After(8 * time.Second):
 			bridge.reconnectIfNeeded()

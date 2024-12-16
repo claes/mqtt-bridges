@@ -67,46 +67,68 @@ func (bridge *RouterOSMQTTBridge) PublishMQTT(subtopic string, message string, r
 	token.Wait()
 }
 
-func (bridge *RouterOSMQTTBridge) MainLoop(ctx context.Context) {
-	for {
-		reconnectRouterOsClient := false
-		reply, err := bridge.RouterOSClient.Run("/interface/wireless/registration-table/print")
-		if err != nil {
-			slog.Error("Could not retrieve registration table", "error", err)
-			reconnectRouterOsClient = true
-		} else {
-			var clients []WifiClient
-			for _, re := range reply.Re {
-				client := WifiClient{
-					MacAddress:    re.Map["mac-address"],
-					Interface:     re.Map["interface"],
-					Uptime:        re.Map["uptime"],
-					LastActivity:  re.Map["last-activity"],
-					SignalToNoise: re.Map["signal-to-noise"],
-				}
-				clients = append(clients, client)
-			}
-			jsonData, err := json.MarshalIndent(clients, "", "    ")
-			if err != nil {
-				slog.Error("Failed to create json", "error", err)
-				continue
-			}
-			bridge.PublishMQTT("routeros/wificlients", string(jsonData), false)
-			bridge.MqttClient.IsConnected()
-		}
+func (bridge *RouterOSMQTTBridge) EventLoop(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
 
-		time.Sleep(30 * time.Second)
-		if reconnectRouterOsClient {
-			slog.Error("Reconnecting RouterOS client")
-			err = bridge.RouterOSClient.Close()
+	err := bridge.retrieveRegistrationTable()
+	if err != nil {
+		bridge.reconnect()
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("Closing down RouterOSMQTTBridge event loop")
+			return
+		case <-ticker.C:
+			err := bridge.retrieveRegistrationTable()
 			if err != nil {
-				slog.Error("Error when closing RouterOS client", "error", err)
+				bridge.reconnect()
 			}
-			client, err := CreateRouterOSClient(bridge.RouterOSClientConfig)
-			if err != nil {
-				slog.Error("Error when recreating RouterOS client", "error", err)
-			}
-			bridge.RouterOSClient = client
 		}
 	}
+}
+
+func (bridge *RouterOSMQTTBridge) retrieveRegistrationTable() error {
+	reply, err := bridge.RouterOSClient.Run("/interface/wireless/registration-table/print")
+	if err != nil {
+		slog.Error("Could not retrieve registration table", "error", err)
+		return err
+	} else {
+		var clients []WifiClient
+		for _, re := range reply.Re {
+			client := WifiClient{
+				MacAddress:    re.Map["mac-address"],
+				Interface:     re.Map["interface"],
+				Uptime:        re.Map["uptime"],
+				LastActivity:  re.Map["last-activity"],
+				SignalToNoise: re.Map["signal-to-noise"],
+			}
+			clients = append(clients, client)
+		}
+		jsonData, err := json.MarshalIndent(clients, "", "    ")
+		if err != nil {
+			slog.Error("Failed to create json", "error", err)
+			return err
+		}
+		bridge.PublishMQTT("routeros/wificlients", string(jsonData), false)
+		bridge.MqttClient.IsConnected()
+	}
+	return nil
+}
+
+func (bridge *RouterOSMQTTBridge) reconnect() {
+	slog.Error("Reconnecting RouterOS client")
+	err := bridge.RouterOSClient.Close()
+	if err != nil {
+		slog.Error("Error when closing RouterOS client", "error", err)
+		return
+	}
+	client, err := CreateRouterOSClient(bridge.RouterOSClientConfig)
+	if err != nil {
+		slog.Error("Error when recreating RouterOS client", "error", err)
+		return
+	}
+	bridge.RouterOSClient = client
 }
