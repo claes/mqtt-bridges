@@ -54,9 +54,8 @@ func main() {
 
 	ctx := context.TODO()
 	fmt.Printf("Started\n")
-	go bridge.MainLoop(ctx)
+	go bridge.EventLoop(ctx)
 	<-c
-	bridge.PulseClient.Close()
 	fmt.Printf("Shut down\n")
 
 	os.Exit(0)

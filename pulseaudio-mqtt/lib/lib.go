@@ -299,7 +299,8 @@ func (bridge *PulseaudioMQTTBridge) PublishMQTT(subtopic string, message string,
 	token.Wait()
 }
 
-func (bridge *PulseaudioMQTTBridge) MainLoop(ctx context.Context) {
+func (bridge *PulseaudioMQTTBridge) EventLoop(ctx context.Context) {
+	defer bridge.PulseClient.Close()
 
 	eventChannels := map[proto.SubscriptionEventType]chan proto.SubscriptionEventType{
 		proto.EventChange: make(chan proto.SubscriptionEventType, 1),
@@ -308,7 +309,6 @@ func (bridge *PulseaudioMQTTBridge) MainLoop(ctx context.Context) {
 	}
 
 	bridge.PulseClient.protoClient.Callback = func(msg interface{}) {
-
 		switch msg := msg.(type) {
 		case *proto.SubscribeEvent:
 			if ch, ok := eventChannels[msg.Event.GetType()]; ok {
@@ -328,56 +328,57 @@ func (bridge *PulseaudioMQTTBridge) MainLoop(ctx context.Context) {
 		return
 	}
 
-	go func() {
-		for {
-			select {
-			case event := <-eventChannels[proto.EventNew]:
-				slog.Debug("Event new", "event", event)
-			case event := <-eventChannels[proto.EventRemove]:
-				slog.Debug("Event remove", "event", event)
-			case event := <-eventChannels[proto.EventChange]:
-				slog.Info("Event change", "event", event)
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("Closing down PulseaudioMQTTBridge event loop")
+			return
+		case event := <-eventChannels[proto.EventNew]:
+			slog.Debug("Event new", "event", event)
+		case event := <-eventChannels[proto.EventRemove]:
+			slog.Debug("Event remove", "event", event)
+		case event := <-eventChannels[proto.EventChange]:
+			slog.Info("Event change", "event", event)
 
-				var err error
-				c := DetectedChanges{}
+			var err error
+			c := DetectedChanges{}
 
-				switch event.GetFacility() {
-				case proto.EventSink:
-					c.defaultSinkChanged, err = bridge.checkUpdateDefaultSink()
-					c.sinksChanged, err = bridge.checkUpdateSinks()
-				case proto.EventSource:
-					c.defaultSourceChanged, err = bridge.checkUpdateDefaultSource()
-					c.activeProfileChanged, err = bridge.checkUpdateActiveProfile()
-					c.sourcesChanged, err = bridge.checkUpdateSources()
-				case proto.EventSinkSinkInput:
-					c.defaultSinkChanged, err = bridge.checkUpdateDefaultSink()
-					c.sinkInputsChanged, err = bridge.checkUpdateSinkInputs()
-				case proto.EventClient:
-					c.clientsChanged, err = bridge.checkUpdateClients()
-				case proto.EventCard:
-					c.cardsChanged, err = bridge.checkUpdateActiveProfile()
-				case proto.EventSinkSourceOutput:
-				case proto.EventModule:
-				case proto.EventServer:
-				}
+			switch event.GetFacility() {
+			case proto.EventSink:
+				c.defaultSinkChanged, err = bridge.checkUpdateDefaultSink()
+				c.sinksChanged, err = bridge.checkUpdateSinks()
+			case proto.EventSource:
+				c.defaultSourceChanged, err = bridge.checkUpdateDefaultSource()
+				c.activeProfileChanged, err = bridge.checkUpdateActiveProfile()
+				c.sourcesChanged, err = bridge.checkUpdateSources()
+			case proto.EventSinkSinkInput:
+				c.defaultSinkChanged, err = bridge.checkUpdateDefaultSink()
+				c.sinkInputsChanged, err = bridge.checkUpdateSinkInputs()
+			case proto.EventClient:
+				c.clientsChanged, err = bridge.checkUpdateClients()
+			case proto.EventCard:
+				c.cardsChanged, err = bridge.checkUpdateActiveProfile()
+			case proto.EventSinkSourceOutput:
+			case proto.EventModule:
+			case proto.EventServer:
+			}
 
-				if err != nil {
-					slog.Error("Error when checking event", "error", err, "event", event)
-					continue
-				}
+			if err != nil {
+				slog.Error("Error when checking event", "error", err, "event", event)
+				continue
+			}
 
-				slog.Info("Change detection outcome",
-					"changeDetection", c)
+			slog.Info("Change detection outcome",
+				"changeDetection", c)
 
-				if c.AnyChanged() {
-					slog.Info("State change detected")
-					bridge.publishState()
-				} else {
-					slog.Info("No state change detected")
-				}
+			if c.AnyChanged() {
+				slog.Info("State change detected")
+				bridge.publishState()
+			} else {
+				slog.Info("No state change detected")
 			}
 		}
-	}()
+	}
 }
 
 func (bridge *PulseaudioMQTTBridge) publishState() {
