@@ -14,7 +14,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-type SamsungRemoteMQTTBridge struct {
+type SamsungTVRemoteMQTTBridge struct {
 	MQTTClient  mqtt.Client
 	TopicPrefix string
 	Controller  *SamsungController
@@ -26,7 +26,7 @@ type SamsungTVClientConfig struct {
 	TVIPAddress string
 }
 
-func NewSamsungRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Client, topicPrefix string) *SamsungRemoteMQTTBridge {
+func NewSamsungRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Client, topicPrefix string) *SamsungTVRemoteMQTTBridge {
 
 	networkInfo, err := getNetworkInformations()
 	if err != nil {
@@ -45,7 +45,7 @@ func NewSamsungRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Cl
 	}
 	slog.Debug("Connected to Samsung TV", "ip", config.TVIPAddress)
 
-	bridge := &SamsungRemoteMQTTBridge{
+	bridge := &SamsungTVRemoteMQTTBridge{
 		MQTTClient:  mqttClient,
 		TopicPrefix: topicPrefix,
 		Controller:  controller,
@@ -67,7 +67,7 @@ func NewSamsungRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Cl
 
 var reconnectSamsungTV = false
 
-func (bridge *SamsungRemoteMQTTBridge) reconnectIfNeeded() {
+func (bridge *SamsungTVRemoteMQTTBridge) reconnectIfNeeded() {
 	if reconnectSamsungTV {
 		err := bridge.Controller.connect(bridge.NetworkInfo, bridge.TVInfo)
 		if err != nil {
@@ -81,7 +81,7 @@ func (bridge *SamsungRemoteMQTTBridge) reconnectIfNeeded() {
 
 var sendMutex sync.Mutex
 
-func (bridge *SamsungRemoteMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
+func (bridge *SamsungTVRemoteMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
 	sendMutex.Lock()
 	defer sendMutex.Unlock()
 
@@ -98,7 +98,7 @@ func (bridge *SamsungRemoteMQTTBridge) onKeySend(client mqtt.Client, message mqt
 	}
 }
 
-func (bridge *SamsungRemoteMQTTBridge) onKeyReconnectSend(client mqtt.Client, message mqtt.Message) {
+func (bridge *SamsungTVRemoteMQTTBridge) onKeyReconnectSend(client mqtt.Client, message mqtt.Message) {
 	sendMutex.Lock()
 	defer sendMutex.Unlock()
 
@@ -113,18 +113,21 @@ func (bridge *SamsungRemoteMQTTBridge) onKeyReconnectSend(client mqtt.Client, me
 	}
 }
 
-func (bridge *SamsungRemoteMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
+func (bridge *SamsungTVRemoteMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
 	token := bridge.MQTTClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
 	token.Wait()
 }
 
-func (bridge *SamsungRemoteMQTTBridge) MainLoop(ctx context.Context) {
-	go func() {
-		for {
-			time.Sleep(8 * time.Second)
+func (bridge *SamsungTVRemoteMQTTBridge) EventLoop(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("Closing down SamsungTVMQTTBridge event loop")
+			return
+		case <-time.After(8 * time.Second):
 			bridge.reconnectIfNeeded()
 		}
-	}()
+	}
 }
 
 // TVInfo represents a remote TV.
