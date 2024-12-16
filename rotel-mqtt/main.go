@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -48,8 +49,9 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
+	ctx := context.TODO()
 	fmt.Printf("Started\n")
-	go bridge.SerialLoop()
+	go bridge.EventLoop(ctx)
 	<-c
 	fmt.Printf("Shut down\n")
 	os.Exit(0)

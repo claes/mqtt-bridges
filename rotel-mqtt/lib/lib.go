@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"sync"
@@ -122,22 +123,32 @@ func (bridge *RotelMQTTBridge) PublishMQTT(subtopic string, message string, reta
 	token.Wait()
 }
 
-func (bridge *RotelMQTTBridge) SerialLoop() {
+func (bridge *RotelMQTTBridge) EventLoop(ctx context.Context) {
+	defer bridge.SerialPort.Close()
+
 	buf := make([]byte, 128)
 	for {
-		n, err := bridge.SerialPort.Read(buf)
-		if err != nil {
-			slog.Error("Error reading bytes from serial port", "buf", buf)
-			continue
-		}
-		bridge.ProcessRotelData(string(buf[:n]))
 
-		jsonState, err := json.Marshal(bridge.State)
-		if err != nil {
-			slog.Error("Error marshalling state", "state", bridge.State)
-			continue
+		select {
+		case <-ctx.Done():
+			slog.Info("Closing down RotelMQTTBridge event loop")
+			return
+		default:
+
+			n, err := bridge.SerialPort.Read(buf)
+			if err != nil {
+				slog.Error("Error reading bytes from serial port", "buf", buf)
+				continue
+			}
+			bridge.ProcessRotelData(string(buf[:n]))
+
+			jsonState, err := json.Marshal(bridge.State)
+			if err != nil {
+				slog.Error("Error marshalling state", "state", bridge.State)
+				continue
+			}
+			bridge.PublishMQTT("rotel/state", string(jsonState), true)
 		}
-		bridge.PublishMQTT("rotel/state", string(jsonState), true)
 	}
 }
 
