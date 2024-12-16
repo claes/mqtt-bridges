@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -51,8 +52,9 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
+	ctx := context.TODO()
 	fmt.Printf("Started\n")
-	go bridge.MainLoop()
+	go bridge.MainLoop(ctx)
 	<-c
 	bridge.PulseClient.Close()
 	fmt.Printf("Shut down\n")

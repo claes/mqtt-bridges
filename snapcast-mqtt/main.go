@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -53,7 +54,8 @@ func main() {
 
 	fmt.Printf("Started\n")
 
-	go bridge.MainLoop()
+	ctx := context.TODO()
+	go bridge.MainLoop(ctx)
 	<-c
 	bridge.SnapClient.Close()
 	fmt.Printf("Shut down\n")

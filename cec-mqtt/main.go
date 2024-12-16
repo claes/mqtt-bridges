@@ -14,7 +14,7 @@ import (
 
 var debug *bool
 
-func MainLoop(bridge lib.CECMQTTBridge) {
+func MainLoop(ctx context.Context, bridge lib.CECMQTTBridge) {
 	for {
 		time.Sleep(10 * time.Second)
 		bridge.CECConnection.Transmit("10:8F")
@@ -63,7 +63,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 
 	slog.Info("Started")
-	go MainLoop(*bridge)
+	go MainLoop(ctx, *bridge)
 	<-c
 	// bridge.Controller.Close()
 

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -117,7 +118,7 @@ func (bridge *SamsungRemoteMQTTBridge) PublishMQTT(subtopic string, message stri
 	token.Wait()
 }
 
-func (bridge *SamsungRemoteMQTTBridge) MainLoop() {
+func (bridge *SamsungRemoteMQTTBridge) MainLoop(ctx context.Context) {
 	go func() {
 		for {
 			time.Sleep(8 * time.Second)

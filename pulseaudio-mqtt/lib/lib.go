@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"regexp"
@@ -298,7 +299,7 @@ func (bridge *PulseaudioMQTTBridge) PublishMQTT(subtopic string, message string,
 	token.Wait()
 }
 
-func (bridge *PulseaudioMQTTBridge) MainLoop() {
+func (bridge *PulseaudioMQTTBridge) MainLoop(ctx context.Context) {
 
 	eventChannels := map[proto.SubscriptionEventType]chan proto.SubscriptionEventType{
 		proto.EventChange: make(chan proto.SubscriptionEventType, 1),

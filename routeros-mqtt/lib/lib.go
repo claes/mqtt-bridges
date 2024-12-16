@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"log/slog"
@@ -66,7 +67,7 @@ func (bridge *RouterOSMQTTBridge) PublishMQTT(subtopic string, message string, r
 	token.Wait()
 }
 
-func (bridge *RouterOSMQTTBridge) MainLoop() {
+func (bridge *RouterOSMQTTBridge) MainLoop(ctx context.Context) {
 	for {
 		reconnectRouterOsClient := false
 		reply, err := bridge.RouterOSClient.Run("/interface/wireless/registration-table/print")

@@ -266,7 +266,7 @@ func (bridge *SnapcastMQTTBridge) processGroupStatus(groupID string) {
 	bridge.ServerStatus.Groups[groupStatus.GroupID] = *groupStatus
 }
 
-func (bridge *SnapcastMQTTBridge) MainLoop() {
+func (bridge *SnapcastMQTTBridge) MainLoop(ctx context.Context) {
 
 	var notify = &snapclient.Notifications{
 		MsgReaderErr:          make(chan error),
