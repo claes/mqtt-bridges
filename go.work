@@ -2,8 +2,11 @@ go 1.22.8
 
 use (
 	./common
-	./samsungtv-mqtt
+	
+	./cec-mqtt
+	./pulseaudio-mqtt
 	./rotel-mqtt
-	./snapcast-mqtt
 	./routeros-mqtt
+	./samsungtv-mqtt
+	./snapcast-mqtt
 )

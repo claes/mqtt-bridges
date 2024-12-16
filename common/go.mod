@@ -1,8 +1,6 @@
 module github.com/claes/mqtt-bridges/common
 
-go 1.21.7
-
-toolchain go1.22.8
+go 1.22.8
 
 require github.com/eclipse/paho.mqtt.golang v1.5.0
 

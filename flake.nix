@@ -32,7 +32,14 @@
         inherit version;
         # In 'nix develop', we don't need a copy of the source tree
         # in the Nix store.
+
+        # preBuild = ''
+        #   export GOWORK=off
+        # '';
+
         src = ./.;
+        modRoot = ./snapcast-mqtt;
+        proxyVendor = true;
 
         # This hash locks the dependencies of this package. It is
         # necessary because of how Go requires network access to resolve
@@ -44,7 +51,7 @@
         # remeber to bump this hash when your dependencies change.
         #vendorSha256 = pkgs.lib.fakeSha256;
 
-        vendorHash = "sha256-9s5gIhu/3hAnXzXby0L9tzys8rLkZgwfECnGipddzkA=";
+        vendorHash = null;
       };
     });
 
@@ -53,7 +60,21 @@
       pkgs = nixpkgsFor.${system};
     in {
       default = pkgs.mkShell {
-        buildInputs = with pkgs; [go gopls gotools go-tools go-outline godef delve mqttui];
+        buildInputs = with pkgs; [
+          go
+          gopls
+          gotools
+          go-tools
+          go-outline
+          godef
+          delve
+          mqttui
+          libcec
+          libcec_platform
+          pkg-config
+          glibc.static
+          #musl
+        ];
       };
     });
 
