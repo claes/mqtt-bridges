@@ -316,6 +316,13 @@ func (bridge *SnapcastMQTTBridge) EventLoop(ctx context.Context) {
 		case m := <-notify.MsgReaderErr:
 			slog.Debug("Message reader error", "error", m.Error())
 			continue
+
+		case <-ctx.Done():
+			slog.Info("Closing down SnapcastMQTTBridge event loop")
+			return
+		case <-wsClose:
+			slog.Info("Snapclient connection closed")
+			//TODO: Initiate reconnect?
 		}
 	}
 }
