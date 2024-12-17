@@ -15,8 +15,7 @@ import (
 )
 
 type SamsungTVRemoteMQTTBridge struct {
-	MQTTClient  mqtt.Client
-	TopicPrefix string
+	common.BaseMQTTBridge
 	Controller  *SamsungController
 	NetworkInfo *NetworkInfo
 	TVInfo      *TVInfo
@@ -47,8 +46,10 @@ func NewSamsungTVRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.
 	slog.Debug("Connected to Samsung TV", "ip", config.TVIPAddress)
 
 	bridge := &SamsungTVRemoteMQTTBridge{
-		MQTTClient:  mqttClient,
-		TopicPrefix: topicPrefix,
+		BaseMQTTBridge: common.BaseMQTTBridge{
+			MQTTClient:  mqttClient,
+			TopicPrefix: topicPrefix,
+		},
 		Controller:  controller,
 		NetworkInfo: networkInfo,
 		TVInfo:      tv,
@@ -112,11 +113,6 @@ func (bridge *SamsungTVRemoteMQTTBridge) onKeyReconnectSend(client mqtt.Client, 
 		bridge.reconnectIfNeeded()
 		bridge.Controller.sendKey(bridge.NetworkInfo, bridge.TVInfo, command)
 	}
-}
-
-func (bridge *SamsungTVRemoteMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MQTTClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
-	token.Wait()
 }
 
 func (bridge *SamsungTVRemoteMQTTBridge) EventLoop(ctx context.Context) {

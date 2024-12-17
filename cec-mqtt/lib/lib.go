@@ -14,12 +14,9 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-var debug *bool
-
 type CECMQTTBridge struct {
-	MQTTClient    mqtt.Client
+	common.BaseMQTTBridge
 	CECConnection *cec.Connection
-	TopicPrefix   string
 }
 
 type CECClientConfig struct {
@@ -50,9 +47,11 @@ func NewCECMQTTBridge(config CECClientConfig, mqttClient mqtt.Client, topicPrefi
 
 	slog.Info("Creating CEC MQTT bridge")
 	bridge := &CECMQTTBridge{
-		MQTTClient:    mqttClient,
+		BaseMQTTBridge: common.BaseMQTTBridge{
+			MQTTClient:  mqttClient,
+			TopicPrefix: topicPrefix,
+		},
 		CECConnection: cecConnection,
-		TopicPrefix:   topicPrefix,
 	}
 
 	funcs := map[string]func(client mqtt.Client, message mqtt.Message){
@@ -87,11 +86,6 @@ func (bridge *CECMQTTBridge) initialize() {
 		bridge.PublishMQTT("cec/source/"+strconv.Itoa(value.LogicalAddress)+"/power",
 			value.PowerStatus, true)
 	}
-}
-
-func (bridge *CECMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MQTTClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
-	token.Wait()
 }
 
 func (bridge *CECMQTTBridge) PublishCommands(ctx context.Context) {

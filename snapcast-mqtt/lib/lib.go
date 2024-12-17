@@ -16,9 +16,8 @@ import (
 )
 
 type SnapcastMQTTBridge struct {
-	MqttClient       mqtt.Client
+	common.BaseMQTTBridge
 	SnapClient       *snapclient.Client
-	TopicPrefix      string
 	SnapClientConfig SnapClientConfig
 	ServerStatus     SnapcastServer
 
@@ -50,9 +49,11 @@ func NewSnapcastMQTTBridge(snapClientConfig SnapClientConfig, mqttClient mqtt.Cl
 	}
 
 	bridge := &SnapcastMQTTBridge{
-		MqttClient:       mqttClient,
+		BaseMQTTBridge: common.BaseMQTTBridge{
+			MQTTClient:  mqttClient,
+			TopicPrefix: topicPrefix,
+		},
 		SnapClient:       snapClient,
-		TopicPrefix:      topicPrefix,
 		SnapClientConfig: snapClientConfig,
 	}
 
@@ -133,11 +134,6 @@ func (bridge *SnapcastMQTTBridge) onClientStreamSet(client mqtt.Client, message 
 			}
 		}
 	}
-}
-
-func (bridge *SnapcastMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MqttClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
-	token.Wait()
 }
 
 func (bridge *SnapcastMQTTBridge) publishServerStatus(serverStatus SnapcastServer, publishGroup, publishClient, publishStream bool) {

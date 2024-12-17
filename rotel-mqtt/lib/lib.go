@@ -29,9 +29,8 @@ type RotelState struct {
 }
 
 type RotelMQTTBridge struct {
+	common.BaseMQTTBridge
 	SerialPort      *serial.Port
-	MQTTClient      mqtt.Client
-	TopicPrefix     string
 	RotelDataParser RotelDataParser
 	State           *RotelState
 }
@@ -61,10 +60,11 @@ func NewRotelMQTTBridge(config RotelClientConfig, mqttClient mqtt.Client, topicP
 	}
 
 	bridge := &RotelMQTTBridge{
-		SerialPort:  serialPort,
-		MQTTClient:  mqttClient,
-		TopicPrefix: topicPrefix,
-
+		BaseMQTTBridge: common.BaseMQTTBridge{
+			MQTTClient:  mqttClient,
+			TopicPrefix: topicPrefix,
+		},
+		SerialPort:      serialPort,
 		RotelDataParser: *NewRotelDataParser(),
 		State:           &RotelState{},
 	}
@@ -122,11 +122,6 @@ func (bridge *RotelMQTTBridge) onInitialize(client mqtt.Client, message mqtt.Mes
 		bridge.PublishMQTT("rotel/command/initialize", "", false)
 		bridge.initialize(true)
 	}
-}
-
-func (bridge *RotelMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MQTTClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
-	token.Wait()
 }
 
 func (bridge *RotelMQTTBridge) EventLoop(ctx context.Context) {
