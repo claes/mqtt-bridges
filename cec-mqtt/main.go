@@ -49,9 +49,18 @@ func main() {
 		os.Exit(0)
 	}
 
+	mqttClient, err := lib.CreateMQTTClient(*mqttBroker)
+	if err != nil {
+		slog.Error("Error creating mqtt client", "error", err, "broker", *mqttBroker)
+		os.Exit(1)
+	}
+
 	cecClientConfig := lib.CECClientConfig{CECName: *cecName, CECDeviceName: *cecDeviceName}
-	bridge := lib.NewCECMQTTBridge(lib.CreateCECConnection(cecClientConfig),
-		lib.CreateMQTTClient(*mqttBroker), *topicPrefix)
+	bridge, err := lib.NewCECMQTTBridge(cecClientConfig, mqttClient, *topicPrefix)
+	if err != nil {
+		slog.Error("Error creating CECMQTTBridge", "error", err)
+		os.Exit(1)
+	}
 
 	ctx := context.Background()
 	go bridge.PublishCommands(ctx)

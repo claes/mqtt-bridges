@@ -26,33 +26,40 @@ type CECClientConfig struct {
 	CECName, CECDeviceName string
 }
 
-func CreateCECConnection(config CECClientConfig) *cec.Connection {
+func CreateCECConnection(config CECClientConfig) (*cec.Connection, error) {
 	slog.Info("Initializing CEC connection", "cecName", config.CECName, "cecDeviceName", config.CECDeviceName)
 
 	cecConnection, err := cec.Open(config.CECName, config.CECDeviceName)
 	if err != nil {
 		slog.Error("Could not connect to CEC device",
 			"cecName", config.CECName, "cecDeviceName", config.CECDeviceName, "error", err)
-		panic(err)
+		return nil, err
 	}
 
 	slog.Info("CEC connection opened")
-	return cecConnection
+	return cecConnection, nil
 }
 
-func CreateMQTTClient(mqttBroker string) mqtt.Client {
+func CreateMQTTClient(mqttBroker string) (mqtt.Client, error) {
 	slog.Info("Creating MQTT client", "broker", mqttBroker)
-	opts := mqtt.NewClientOptions().AddBroker(mqttBroker)
+	opts := mqtt.NewClientOptions().AddBroker(mqttBroker).SetAutoReconnect(true)
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		slog.Error("Could not connect to broker", "mqttBroker", mqttBroker, "error", token.Error())
-		panic(token.Error())
+		return nil, token.Error()
 	}
 	slog.Info("Connected to MQTT broker", "mqttBroker", mqttBroker)
-	return client
+
+	return client, nil
 }
 
-func NewCECMQTTBridge(cecConnection *cec.Connection, mqttClient mqtt.Client, topicPrefix string) *CECMQTTBridge {
+func NewCECMQTTBridge(config CECClientConfig, mqttClient mqtt.Client, topicPrefix string) (*CECMQTTBridge, error) {
+
+	cecConnection, err := CreateCECConnection(config)
+	if err != nil {
+		slog.Error("Could not create CEC connection", "error", err)
+		return nil, err
+	}
 
 	slog.Info("Creating CEC MQTT bridge")
 	bridge := &CECMQTTBridge{
@@ -72,7 +79,7 @@ func NewCECMQTTBridge(cecConnection *cec.Connection, mqttClient mqtt.Client, top
 
 	bridge.initialize()
 	slog.Info("CEC MQTT bridge initialized")
-	return bridge
+	return bridge, nil
 }
 
 func (bridge *CECMQTTBridge) initialize() {

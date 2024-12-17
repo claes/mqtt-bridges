@@ -128,7 +128,13 @@ func CreatePulseClient(config PulseClientConfig) (*PulseClient, error) {
 	return pulseClient, nil
 }
 
-func NewPulseaudioMQTTBridge(pulseClient *PulseClient, mqttClient mqtt.Client, topicPrefix string) *PulseaudioMQTTBridge {
+func NewPulseaudioMQTTBridge(config PulseClientConfig, mqttClient mqtt.Client, topicPrefix string) (*PulseaudioMQTTBridge, error) {
+
+	pulseClient, err := CreatePulseClient(config)
+	if err != nil {
+		slog.Error("Error while initializing pulseclient", "error", err, "config", config)
+		return nil, err
+	}
 
 	bridge := &PulseaudioMQTTBridge{
 		MqttClient:  mqttClient,
@@ -161,7 +167,7 @@ func NewPulseaudioMQTTBridge(pulseClient *PulseClient, mqttClient mqtt.Client, t
 	bridge.initialize()
 
 	time.Sleep(2 * time.Second)
-	return bridge
+	return bridge, nil
 }
 
 func (bridge *PulseaudioMQTTBridge) onInitialize(client mqtt.Client, message mqtt.Message) {

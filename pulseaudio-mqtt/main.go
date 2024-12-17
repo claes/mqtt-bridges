@@ -34,20 +34,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	pulseClientConfig := lib.PulseClientConfig{PulseServerAddress: *pulseServer}
-
-	pulseClient, err := lib.CreatePulseClient(*&pulseClientConfig)
-	if err != nil {
-		slog.Error("Error creating pulse client", "error", err, "pulseServer", *pulseServer)
-		os.Exit(1)
-	}
-
 	mqttClient, err := common.CreateMQTTClient(*mqttBroker)
 	if err != nil {
 		slog.Error("Error creating mqtt client", "error", err, "broker", *mqttBroker)
 		os.Exit(1)
 	}
-	bridge := lib.NewPulseaudioMQTTBridge(pulseClient, mqttClient, *topicPrefix)
+
+	pulseClientConfig := lib.PulseClientConfig{PulseServerAddress: *pulseServer}
+	bridge, err := lib.NewPulseaudioMQTTBridge(pulseClientConfig, mqttClient, *topicPrefix)
+	if err != nil {
+		slog.Error("Error creating PulseaudioMQTTBridge", "error", err)
+		os.Exit(1)
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

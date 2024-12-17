@@ -26,11 +26,12 @@ type SamsungTVClientConfig struct {
 	TVIPAddress string
 }
 
-func NewSamsungRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Client, topicPrefix string) *SamsungTVRemoteMQTTBridge {
+func NewSamsungTVRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Client, topicPrefix string) (*SamsungTVRemoteMQTTBridge, error) {
 
 	networkInfo, err := getNetworkInformations()
 	if err != nil {
-		panic(err)
+		slog.Error("Could not retrieve network information", "error", err)
+		return nil, err
 	}
 
 	tv := &TVInfo{
@@ -62,7 +63,7 @@ func NewSamsungRemoteMQTTBridge(config SamsungTVClientConfig, mqttClient mqtt.Cl
 		token.Wait()
 	}
 	time.Sleep(2 * time.Second)
-	return bridge
+	return bridge, nil
 }
 
 var reconnectSamsungTV = false

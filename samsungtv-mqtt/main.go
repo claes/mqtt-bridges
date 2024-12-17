@@ -42,7 +42,11 @@ func main() {
 
 	samsungTvClientConfig := lib.SamsungTVClientConfig{TVIPAddress: *tvIPAddress}
 
-	bridge := lib.NewSamsungRemoteMQTTBridge(samsungTvClientConfig, mqttClient, *topicPrefix)
+	bridge, err := lib.NewSamsungTVRemoteMQTTBridge(samsungTvClientConfig, mqttClient, *topicPrefix)
+	if err != nil {
+		slog.Error("Error creating SamsungRemoteMQTT bridge", "error", err)
+		os.Exit(1)
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

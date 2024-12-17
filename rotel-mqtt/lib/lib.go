@@ -52,7 +52,13 @@ func CreateSerialPort(config RotelClientConfig) (*serial.Port, error) {
 	return serialPort, nil
 }
 
-func NewRotelMQTTBridge(serialPort *serial.Port, mqttClient mqtt.Client, topicPrefix string) *RotelMQTTBridge {
+func NewRotelMQTTBridge(config RotelClientConfig, mqttClient mqtt.Client, topicPrefix string) (*RotelMQTTBridge, error) {
+
+	serialPort, err := CreateSerialPort(config)
+	if err != nil {
+		slog.Error("Could not open serial port ", "config", config, "error", err)
+		return nil, err
+	}
 
 	bridge := &RotelMQTTBridge{
 		SerialPort:  serialPort,
@@ -73,7 +79,7 @@ func NewRotelMQTTBridge(serialPort *serial.Port, mqttClient mqtt.Client, topicPr
 	}
 	time.Sleep(2 * time.Second)
 	bridge.initialize(true)
-	return bridge
+	return bridge, nil
 }
 
 func (bridge *RotelMQTTBridge) initialize(askPower bool) {

@@ -34,17 +34,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	rotelClientConfig := lib.RotelClientConfig{SerialDevice: *serialDevice}
-
-	serialPort, err := lib.CreateSerialPort(rotelClientConfig)
-	if err != nil {
-		slog.Error("Error creating serial device", "error", err, "serialDevice", *serialDevice)
-	}
 	mqttClient, err := common.CreateMQTTClient(*mqttBroker)
 	if err != nil {
 		slog.Error("Error creating mqtt client", "error", err, "broker", *mqttBroker)
+		os.Exit(1)
 	}
-	bridge := lib.NewRotelMQTTBridge(serialPort, mqttClient, *topicPrefix)
+
+	rotelClientConfig := lib.RotelClientConfig{SerialDevice: *serialDevice}
+	bridge, err := lib.NewRotelMQTTBridge(rotelClientConfig, mqttClient, *topicPrefix)
+	if err != nil {
+		slog.Error("Error creating RotelMQTT bridge", "error", err)
+		os.Exit(1)
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
