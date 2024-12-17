@@ -17,6 +17,7 @@ import (
 type CECMQTTBridge struct {
 	common.BaseMQTTBridge
 	CECConnection *cec.Connection
+	sendMutex     sync.Mutex
 }
 
 type CECClientConfig struct {
@@ -172,11 +173,9 @@ func (bridge *CECMQTTBridge) PublishMessages(ctx context.Context, logOnly bool) 
 	}
 }
 
-var sendMutex sync.Mutex
-
 func (bridge *CECMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Message) {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
 
 	if "" == string(message.Payload()) {
 		return
@@ -190,8 +189,8 @@ func (bridge *CECMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Mess
 }
 
 func (bridge *CECMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
 
 	if "" == string(message.Payload()) {
 		return

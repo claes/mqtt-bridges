@@ -30,9 +30,11 @@ type RotelState struct {
 
 type RotelMQTTBridge struct {
 	common.BaseMQTTBridge
-	SerialPort      *serial.Port
-	RotelDataParser RotelDataParser
-	State           *RotelState
+	SerialPort       *serial.Port
+	RotelDataParser  RotelDataParser
+	State            *RotelState
+	sendMutex        sync.Mutex
+	serialWriteMutex sync.Mutex
 }
 
 type RotelClientConfig struct {
@@ -100,11 +102,9 @@ func (bridge *RotelMQTTBridge) initialize(askPower bool) {
 	bridge.SendSerialRequest("get_balance!")
 }
 
-var sendMutex sync.Mutex
-
 func (bridge *RotelMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Message) {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
 
 	// Sends command to the Rotel without intermediate parsing
 	// Rotel commands are documented here:
@@ -153,11 +153,9 @@ func (bridge *RotelMQTTBridge) EventLoop(ctx context.Context) {
 	}
 }
 
-var serialWriteMutex sync.Mutex
-
 func (bridge *RotelMQTTBridge) SendSerialRequest(message string) {
-	serialWriteMutex.Lock()
-	defer serialWriteMutex.Unlock()
+	bridge.serialWriteMutex.Lock()
+	defer bridge.serialWriteMutex.Unlock()
 
 	_, err := bridge.SerialPort.Write([]byte(message))
 	if err != nil {

@@ -19,6 +19,7 @@ type SamsungTVRemoteMQTTBridge struct {
 	Controller  *SamsungController
 	NetworkInfo *NetworkInfo
 	TVInfo      *TVInfo
+	sendMutex   sync.Mutex
 }
 
 type SamsungTVClientConfig struct {
@@ -81,11 +82,9 @@ func (bridge *SamsungTVRemoteMQTTBridge) reconnectIfNeeded() {
 	}
 }
 
-var sendMutex sync.Mutex
-
 func (bridge *SamsungTVRemoteMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message) {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
 
 	command := string(message.Payload())
 	if command != "" {
@@ -101,8 +100,8 @@ func (bridge *SamsungTVRemoteMQTTBridge) onKeySend(client mqtt.Client, message m
 }
 
 func (bridge *SamsungTVRemoteMQTTBridge) onKeyReconnectSend(client mqtt.Client, message mqtt.Message) {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
 
 	command := string(message.Payload())
 	if command != "" {
