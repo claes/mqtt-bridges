@@ -28,10 +28,6 @@ type SnapClientConfig struct {
 	SnapServerAddress string
 }
 
-type MQTTClientConfig struct {
-	MQTTBroker string
-}
-
 func CreateSnapclient(config SnapClientConfig) (*snapclient.Client, error) {
 	var client = snapclient.New(&snapclient.Options{
 		Host:             config.SnapServerAddress,

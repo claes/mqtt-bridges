@@ -32,10 +32,6 @@ type RouterOSClientConfig struct {
 	RouterAddress, Username, Password string
 }
 
-type MQTTClientConfig struct {
-	MQTTBroker string
-}
-
 func CreateRouterOSClient(config RouterOSClientConfig) (*routeros.Client, error) {
 	client, err := routeros.DialTLS(config.RouterAddress, config.Username, config.Password, &tls.Config{
 		InsecureSkipVerify: true,
