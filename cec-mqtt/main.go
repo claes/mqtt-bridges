@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"time"
 
+	common "github.com/claes/mqtt-bridges/common"
+
 	lib "github.com/claes/cec-mqtt/lib"
 )
 
@@ -49,7 +51,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	mqttClient, err := lib.CreateMQTTClient(*mqttBroker)
+	mqttClient, err := common.CreateMQTTClient(*mqttBroker)
 	if err != nil {
 		slog.Error("Error creating mqtt client", "error", err, "broker", *mqttBroker)
 		os.Exit(1)
