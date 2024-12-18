@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/claes/snapcast-mqtt/lib"
+	"github.com/claes/mqtt-bridges/snapcast-mqtt/lib"
 
 	common "github.com/claes/mqtt-bridges/common"
 )

@@ -10,7 +10,7 @@ import (
 
 	common "github.com/claes/mqtt-bridges/common"
 
-	"github.com/claes/rotel-mqtt/lib"
+	"github.com/claes/mqtt-bridges/rotel-mqtt/lib"
 )
 
 var debug *bool

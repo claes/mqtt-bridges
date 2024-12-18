@@ -10,7 +10,7 @@ import (
 
 	common "github.com/claes/mqtt-bridges/common"
 
-	"github.com/claes/pulseaudio-mqtt/lib"
+	"github.com/claes/mqtt-bridges/pulseaudio-mqtt/lib"
 )
 
 var debug *bool

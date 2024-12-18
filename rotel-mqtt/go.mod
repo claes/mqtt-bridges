@@ -1,4 +1,4 @@
-module github.com/claes/rotel-mqtt
+module github.com/claes/mqtt-bridges/rotel-mqtt
 
 go 1.22.8
 

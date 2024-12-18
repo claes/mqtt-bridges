@@ -1,4 +1,4 @@
-module github.com/claes/snapcast-mqtt
+module github.com/claes/mqtt-bridges/snapcast-mqtt
 
 go 1.22.8
 

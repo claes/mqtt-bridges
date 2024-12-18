@@ -11,7 +11,7 @@ import (
 
 	common "github.com/claes/mqtt-bridges/common"
 
-	lib "github.com/claes/cec-mqtt/lib"
+	lib "github.com/claes/mqtt-bridges/cec-mqtt/lib"
 )
 
 var debug *bool

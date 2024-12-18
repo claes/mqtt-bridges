@@ -1,4 +1,4 @@
-module github.com/claes/routeros-mqtt
+module github.com/claes/mqtt-bridges/routeros-mqtt
 
 go 1.22.8
 

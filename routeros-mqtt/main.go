@@ -9,7 +9,7 @@ import (
 	"os/signal"
 
 	common "github.com/claes/mqtt-bridges/common"
-	"github.com/claes/routeros-mqtt/lib"
+	"github.com/claes/mqtt-bridges/routeros-mqtt/lib"
 )
 
 var debug *bool

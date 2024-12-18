@@ -10,7 +10,7 @@ import (
 
 	common "github.com/claes/mqtt-bridges/common"
 
-	"github.com/claes/samsungtv-mqtt/lib"
+	"github.com/claes/mqtt-bridges/samsungtv-mqtt/lib"
 )
 
 var debug *bool

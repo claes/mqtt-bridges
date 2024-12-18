@@ -1,4 +1,4 @@
-module github.com/claes/samsungtv-mqtt
+module github.com/claes/mqtt-bridges/samsungtv-mqtt
 
 go 1.22.8
 
