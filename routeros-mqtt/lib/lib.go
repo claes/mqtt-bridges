@@ -22,9 +22,8 @@ type WifiClient struct {
 }
 
 type RouterOSMQTTBridge struct {
-	MqttClient           mqtt.Client
+	common.BaseMQTTBridge
 	RouterOSClient       *routeros.Client
-	TopicPrefix          string
 	RouterOSClientConfig RouterOSClientConfig
 }
 
@@ -48,19 +47,16 @@ func NewRouterOSMQTTBridge(routerOSConfig RouterOSClientConfig, mqttClient mqtt.
 	}
 
 	bridge := &RouterOSMQTTBridge{
-		MqttClient:           mqttClient,
+		BaseMQTTBridge: common.BaseMQTTBridge{
+			MQTTClient:  mqttClient,
+			TopicPrefix: topicPrefix,
+		},
 		RouterOSClient:       routerOSClient,
-		TopicPrefix:          topicPrefix,
 		RouterOSClientConfig: routerOSConfig,
 	}
 
 	routerOSClient.Listen()
 	return bridge, nil
-}
-
-func (bridge *RouterOSMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MqttClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
-	token.Wait()
 }
 
 func (bridge *RouterOSMQTTBridge) EventLoop(ctx context.Context) {
@@ -109,7 +105,7 @@ func (bridge *RouterOSMQTTBridge) retrieveRegistrationTable() error {
 			return err
 		}
 		bridge.PublishMQTT("routeros/wificlients", string(jsonData), false)
-		bridge.MqttClient.IsConnected()
+		bridge.MQTTClient.IsConnected() //Why? Forgot..
 	}
 	return nil
 }
