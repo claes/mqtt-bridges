@@ -3,6 +3,7 @@ go 1.22.8
 use (
 	./common
 	
+	./mpd-mqtt
 	./cec-mqtt
 	./pulseaudio-mqtt
 	./rotel-mqtt
