@@ -3,6 +3,7 @@ package lib
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"path"
@@ -295,26 +296,33 @@ func (c *PulseClient) ListCards() ([]*Card, error) {
 
 const volumeHundredPercent = 65536
 
-func ratioToVolume(r float32) (uint32, error) {
+func ratioToVolume(r float64) (uint32, error) {
 	vf := r * volumeHundredPercent
 	if vf < 0 || vf > 0xFFFFFFFF {
-		return 0, errors.New("volume out of range")
+		return 0, errors.New(fmt.Sprintf("given adjustment %f results in volume %f out of range", r, vf))
 	}
 	return uint32(vf), nil
 }
 
-func min(a, b uint32) uint32 {
-	if a < b {
-		return a
+func ratioToVolumeSigned(r float64) (int32, error) {
+	vf := r * volumeHundredPercent
+	if math.Abs(vf) < 0 || math.Abs(vf) > 0xFFFFFFFF {
+		return 0, errors.New(fmt.Sprintf("given adjustment %f results in volume %f out of range", r, vf))
 	}
-	return b
+	return int32(vf), nil
 }
 
-func max(a, b uint32) uint32 {
-	if a > b {
-		return a
+func computeChange(before uint32, change int32, max, min uint32) uint32 {
+	b := int64(before)
+	c := int64(change)
+	n := b + c
+	if n > int64(max) {
+		return max
+	} else if n < int64(min) {
+		return min
+	} else {
+		return uint32(n)
 	}
-	return b
 }
 
 // SetSinkVolume sets volume of the chnnels.
@@ -325,7 +333,7 @@ func (c *PulseClient) SetSinkVolume(s *Sink, volume ...float32) error {
 	var cvol proto.ChannelVolumes
 	switch len(volume) {
 	case 1:
-		v, err := ratioToVolume(volume[0])
+		v, err := ratioToVolume(float64(volume[0]))
 		if err != nil {
 			return err
 		}
@@ -334,7 +342,7 @@ func (c *PulseClient) SetSinkVolume(s *Sink, volume ...float32) error {
 		}
 	case len(s.info.ChannelVolumes):
 		for _, vRatio := range volume {
-			v, err := ratioToVolume(vRatio)
+			v, err := ratioToVolume(float64(vRatio))
 			if err != nil {
 				return err
 			}
@@ -354,22 +362,22 @@ func (c *PulseClient) ChangeSinkVolume(s *Sink, volume ...float32) error {
 	var cvol proto.ChannelVolumes
 	switch len(volume) {
 	case 1:
-		v, err := ratioToVolume(volume[0])
+		v, err := ratioToVolumeSigned(float64(volume[0]))
 		if err != nil {
 			return err
 		}
 		for _, curVolume := range s.info.ChannelVolumes {
-			newVolume := max(0xFFFFFFFF, min(0, curVolume+v))
+			newVolume := computeChange(curVolume, v, 0xFFFFFFFF, 0)
 			cvol = append(cvol, newVolume)
 		}
 	case len(s.info.ChannelVolumes):
 		for i, vRatio := range volume {
-			v, err := ratioToVolume(vRatio)
+			v, err := ratioToVolumeSigned(float64(vRatio))
 			if err != nil {
 				return err
 			}
 			curVolume := s.info.ChannelVolumes[i]
-			newVolume := max(0xFFFFFFFF, min(0, curVolume+v))
+			newVolume := computeChange(curVolume, v, 0xFFFFFFFF, 0)
 			cvol = append(cvol, newVolume)
 		}
 	default:

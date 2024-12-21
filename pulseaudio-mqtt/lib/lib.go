@@ -272,7 +272,7 @@ func (bridge *PulseaudioMQTTBridge) onVolumeSet(client mqtt.Client, message mqtt
 
 		err = bridge.PulseClient.SetSinkVolume(sink, float32(volume))
 		if err != nil {
-			slog.Error("Could not set card profile", "error", err)
+			slog.Error("Could not set volume", "error", err)
 			return
 		}
 	}
@@ -298,7 +298,7 @@ func (bridge *PulseaudioMQTTBridge) onVolumeChange(client mqtt.Client, message m
 
 		err = bridge.PulseClient.ChangeSinkVolume(sink, float32(change))
 		if err != nil {
-			slog.Error("Could not set card profile", "error", err)
+			slog.Error("Could not change volume", "error", err)
 			return
 		}
 	}
