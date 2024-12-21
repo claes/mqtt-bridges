@@ -302,7 +302,6 @@ func (bridge *PulseaudioMQTTBridge) onVolumeChange(client mqtt.Client, message m
 			return
 		}
 	}
-
 }
 
 func CalculateIncrease(current, percent, max uint32) uint32 {
