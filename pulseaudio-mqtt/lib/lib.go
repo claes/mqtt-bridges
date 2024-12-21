@@ -256,23 +256,25 @@ func (bridge *PulseaudioMQTTBridge) onVolumeSet(client mqtt.Client, message mqtt
 	bridge.sendMutex.Lock()
 	defer bridge.sendMutex.Unlock()
 
-	volume, err := strconv.ParseFloat(string(message.Payload()), 32)
-	if err != nil {
-		slog.Error("Could not parse float", "payload", message.Payload())
-		return
-	}
-	bridge.PublishMQTT("pulseaudio/volume/set", "", false)
+	if string(message.Payload()) != "" {
+		volume, err := strconv.ParseFloat(string(message.Payload()), 32)
+		if err != nil {
+			slog.Error("Could not parse float", "payload", message.Payload())
+			return
+		}
+		bridge.PublishMQTT("pulseaudio/volume/set", "", false)
 
-	sink, err := bridge.PulseClient.DefaultSink()
-	if err != nil {
-		slog.Error("Could not retrieve default sink", "error", err)
-		return
-	}
+		sink, err := bridge.PulseClient.DefaultSink()
+		if err != nil {
+			slog.Error("Could not retrieve default sink", "error", err)
+			return
+		}
 
-	err = bridge.PulseClient.SetSinkVolume(sink, float32(volume))
-	if err != nil {
-		slog.Error("Could not set card profile", "error", err)
-		return
+		err = bridge.PulseClient.SetSinkVolume(sink, float32(volume))
+		if err != nil {
+			slog.Error("Could not set card profile", "error", err)
+			return
+		}
 	}
 }
 
@@ -280,24 +282,27 @@ func (bridge *PulseaudioMQTTBridge) onVolumeChange(client mqtt.Client, message m
 	bridge.sendMutex.Lock()
 	defer bridge.sendMutex.Unlock()
 
-	change, err := strconv.ParseFloat(string(message.Payload()), 32)
-	if err != nil {
-		slog.Error("Could not parse float", "payload", message.Payload())
-		return
-	}
-	bridge.PublishMQTT("pulseaudio/volume/change", "", false)
+	if string(message.Payload()) != "" {
+		change, err := strconv.ParseFloat(string(message.Payload()), 32)
+		if err != nil {
+			slog.Error("Could not parse float", "payload", message.Payload())
+			return
+		}
+		bridge.PublishMQTT("pulseaudio/volume/change", "", false)
 
-	sink, err := bridge.PulseClient.DefaultSink()
-	if err != nil {
-		slog.Error("Could not retrieve default sink", "error", err)
-		return
+		sink, err := bridge.PulseClient.DefaultSink()
+		if err != nil {
+			slog.Error("Could not retrieve default sink", "error", err)
+			return
+		}
+
+		err = bridge.PulseClient.ChangeSinkVolume(sink, float32(change))
+		if err != nil {
+			slog.Error("Could not set card profile", "error", err)
+			return
+		}
 	}
 
-	err = bridge.PulseClient.ChangeSinkVolume(sink, float32(change))
-	if err != nil {
-		slog.Error("Could not set card profile", "error", err)
-		return
-	}
 }
 
 func CalculateIncrease(current, percent, max uint32) uint32 {
