@@ -4,6 +4,7 @@ use (
 	./common
 	
 	./cec-mqtt
+	./bluez-mqtt
 	./pulseaudio-mqtt
 	./rotel-mqtt
 	./routeros-mqtt

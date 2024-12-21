@@ -65,6 +65,7 @@ func NewBluezMediaPlayerMQTTBridge(config BluezMediaPlayerConfig, mqttClient mqt
 	}
 	funcs := map[string]func(client mqtt.Client, message mqtt.Message){
 		"bluez/" + bridge.BluezMediaPlayerConfig.BluetoothMACAddress + "/mediacontrol/command/send": bridge.onMediaControlCommandSend,
+		"bluez/" + bridge.BluezMediaPlayerConfig.BluetoothMACAddress + "/mediaplayer/command/send":  bridge.onMediaPlayerCommandSend,
 	}
 	for key, function := range funcs {
 		token := mqttClient.Subscribe(common.Prefixify(topicPrefix, key), 0, function)
@@ -78,14 +79,28 @@ func (bridge *BluezMediaPlayerMQTTBridge) onMediaControlCommandSend(client mqtt.
 	bridge.sendMutex.Lock()
 	defer bridge.sendMutex.Unlock()
 
-	//mediacontrol seems deprecated but it is what I have
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediacontrol/command/send", "", false)
+		bridge.PublishMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediaplayer/command/send", "", false)
 		method := fmt.Sprintf("org.bluez.MediaControl1.%s", command)
 		call := bridge.BluezMediaPlayer.Call(method, 0)
 		if call.Err != nil {
-			slog.Error("Error sending bluez mediaplayer command", "error", call.Err, "devicePath", bridge.DevicePath, "method", method)
+			slog.Error("Error sending bluez MediaControl command", "error", call.Err, "devicePath", bridge.DevicePath, "method", method)
+		}
+	}
+}
+
+func (bridge *BluezMediaPlayerMQTTBridge) onMediaPlayerCommandSend(client mqtt.Client, message mqtt.Message) {
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
+
+	command := string(message.Payload())
+	if command != "" {
+		bridge.PublishMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediaplayer/command/send", "", false)
+		method := fmt.Sprintf("org.bluez.MediaPlayer1.%s", command)
+		call := bridge.BluezMediaPlayer.Call(method, 0)
+		if call.Err != nil {
+			slog.Error("Error sending bluez MediaPlayer command", "error", call.Err, "devicePath", bridge.DevicePath, "method", method)
 		}
 	}
 }
@@ -97,47 +112,6 @@ func (bridge *BluezMediaPlayerMQTTBridge) EventLoop(ctx context.Context) {
 			return
 		}
 	}
-	// conn, err := dbus.SessionBus()
-
-	// if err != nil {
-	// 	slog.Error("Failed to connect to dbus system bus", "error", err)
-	// 	return
-	// }
-
-	// // // Match PropertiesChanged signals
-	// // // Specifically for BlueZ MediaPlayer1 interface
-	// // call := bridge.BluezMediaPlayer.Call(
-	// // 	"org.freedesktop.DBus.AddMatch", 0,
-	// // 	"type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'",
-	// // 	//"type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='"+bridge.DevicePath+"/player0'",
-	// // )
-
-	// // if call.Err != nil {
-	// // 	log.Fatalf("Failed to add match: %v", call.Err)
-	// // }
-
-	// signalChan := make(chan *dbus.Signal, 10)
-	// conn.Signal(signalChan)
-
-	// for signal := range signalChan {
-	// 	fmt.Println("hej")
-	// 	if signal.Name == "org.freedesktop.DBus.Properties.PropertiesChanged" {
-	// 		fmt.Println("PropertiesChanged signal received:", signal.Body)
-	// 	}
-
-	// 	if len(signal.Body) < 3 {
-	// 		continue
-	// 	}
-	// 	interfaceName := signal.Body[0].(string)
-	// 	changedProperties := signal.Body[1].(map[string]dbus.Variant)
-
-	// 	if interfaceName == "org.bluez.MediaPlayer1" {
-	// 		slog.Info("Signal received for interface", "interface", interfaceName)
-	// 		for key, value := range changedProperties {
-	// 			slog.Info("Property changed", "property", key, "value", value.Value())
-	// 		}
-	// 	}
-	// }
 }
 
 // Converts a Bluetooth MAC address
