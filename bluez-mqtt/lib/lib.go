@@ -19,6 +19,7 @@ type BluezMediaPlayerConfig struct {
 
 type BluezMediaPlayerMQTTBridge struct {
 	common.BaseMQTTBridge
+	BluezMediaControl      dbus.BusObject
 	BluezMediaPlayer       dbus.BusObject
 	BluezMediaPlayerConfig BluezMediaPlayerConfig
 	DevicePath             string
@@ -26,6 +27,21 @@ type BluezMediaPlayerMQTTBridge struct {
 }
 
 func CreateBluezMediaPlayer(config BluezMediaPlayerConfig) (dbus.BusObject, error) {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		slog.Error("Error connecting to system dbus", "error", err)
+		return nil, err
+	}
+	devicePath, err := bluetoothMACToBluezDevicePath(config.BluetoothMACAddress)
+	if err != nil {
+		slog.Error("Error converting Bluetooth MAC address to device path", "error", err, "mac", config.BluetoothMACAddress)
+		return nil, err
+	}
+	obj := conn.Object("org.bluez", dbus.ObjectPath(devicePath+"/player0"))
+	return obj, nil
+}
+
+func CreateBluezMediaControl(config BluezMediaPlayerConfig) (dbus.BusObject, error) {
 	conn, err := dbus.SystemBus()
 	if err != nil {
 		slog.Error("Error connecting to system dbus", "error", err)
@@ -48,6 +64,12 @@ func NewBluezMediaPlayerMQTTBridge(config BluezMediaPlayerConfig, mqttClient mqt
 		return nil, err
 	}
 
+	bluezMediaControl, err := CreateBluezMediaControl(config)
+	if err != nil {
+		slog.Error("Error creating Bluez MediaPlayer client", "error", err)
+		return nil, err
+	}
+
 	devicePath, err := bluetoothMACToBluezDevicePath(config.BluetoothMACAddress)
 	if err != nil {
 		slog.Error("Error converting Bluetooth MAC address to device path", "error", err, "mac", config.BluetoothMACAddress)
@@ -62,6 +84,7 @@ func NewBluezMediaPlayerMQTTBridge(config BluezMediaPlayerConfig, mqttClient mqt
 		BluezMediaPlayerConfig: config,
 		DevicePath:             devicePath,
 		BluezMediaPlayer:       bluezMediaPlayer,
+		BluezMediaControl:      bluezMediaControl,
 	}
 	funcs := map[string]func(client mqtt.Client, message mqtt.Message){
 		"bluez/" + bridge.BluezMediaPlayerConfig.BluetoothMACAddress + "/mediacontrol/command/send": bridge.onMediaControlCommandSend,
@@ -81,9 +104,9 @@ func (bridge *BluezMediaPlayerMQTTBridge) onMediaControlCommandSend(client mqtt.
 
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediaplayer/command/send", "", false)
+		bridge.PublishMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediacontrol/command/send", "", false)
 		method := fmt.Sprintf("org.bluez.MediaControl1.%s", command)
-		call := bridge.BluezMediaPlayer.Call(method, 0)
+		call := bridge.BluezMediaControl.Call(method, 0)
 		if call.Err != nil {
 			slog.Error("Error sending bluez MediaControl command", "error", call.Err, "devicePath", bridge.DevicePath, "method", method)
 		}
