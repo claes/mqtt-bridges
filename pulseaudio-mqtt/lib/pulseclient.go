@@ -178,6 +178,14 @@ func (s *Sink) Mute() bool {
 	return s.info.Mute
 }
 
+func (s *Sink) BaseVolume() uint32 {
+	return uint32(s.info.BaseVolume)
+}
+
+func (s *Sink) ChannelVolumes() []uint32 {
+	return []uint32(s.info.ChannelVolumes)
+}
+
 // Channels returns the default channel map.
 func (s *Sink) Channels() proto.ChannelMap {
 	return s.info.ChannelMap
@@ -295,6 +303,20 @@ func ratioToVolume(r float32) (uint32, error) {
 	return uint32(vf), nil
 }
 
+func min(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b uint32) uint32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // SetSinkVolume sets volume of the chnnels.
 // 1.0 means maximum volume and the sink may support software boosted value larger than 1.0.
 // Number of the arguments should be matched to the number of the channels.
@@ -317,6 +339,38 @@ func (c *PulseClient) SetSinkVolume(s *Sink, volume ...float32) error {
 				return err
 			}
 			cvol = append(cvol, v)
+		}
+	default:
+		return errors.New("invalid volume length")
+	}
+	return c.protoClient.Request(&proto.SetSinkVolume{
+		SinkIndex:      s.info.SinkIndex,
+		ChannelVolumes: cvol,
+	}, &SetSinkVolumeReply{})
+}
+
+// ChangeSinkVolume sets a relative volume adjustment
+func (c *PulseClient) ChangeSinkVolume(s *Sink, volume ...float32) error {
+	var cvol proto.ChannelVolumes
+	switch len(volume) {
+	case 1:
+		v, err := ratioToVolume(volume[0])
+		if err != nil {
+			return err
+		}
+		for _, curVolume := range s.info.ChannelVolumes {
+			newVolume := max(0xFFFFFFFF, min(0, curVolume+v))
+			cvol = append(cvol, newVolume)
+		}
+	case len(s.info.ChannelVolumes):
+		for i, vRatio := range volume {
+			v, err := ratioToVolume(vRatio)
+			if err != nil {
+				return err
+			}
+			curVolume := s.info.ChannelVolumes[i]
+			newVolume := max(0xFFFFFFFF, min(0, curVolume+v))
+			cvol = append(cvol, newVolume)
 		}
 	default:
 		return errors.New("invalid volume length")

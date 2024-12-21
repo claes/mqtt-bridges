@@ -28,11 +28,13 @@ type PulseAudioState struct {
 }
 
 type PulseAudioSink struct {
-	Name      string
-	Id        string
-	SinkIndex uint32
-	State     uint32
-	Mute      bool
+	Name           string
+	Id             string
+	SinkIndex      uint32
+	State          uint32
+	Mute           bool
+	BaseVolume     uint32
+	ChannelVolumes []uint32
 }
 
 type PulseAudioSinkInput struct {
@@ -157,6 +159,7 @@ func NewPulseaudioMQTTBridge(config PulseClientConfig, mqttClient mqtt.Client, t
 		"pulseaudio/cardprofile/+/set": bridge.onCardProfileSet,
 		"pulseaudio/mute/set":          bridge.onMuteSet,
 		"pulseaudio/volume/set":        bridge.onVolumeSet,
+		"pulseaudio/volume/change":     bridge.onVolumeChange,
 		"pulseaudio/initialize":        bridge.onInitialize,
 		"pulseaudio/sinkinput/req":     bridge.onSinkInputReq,
 	}
@@ -271,6 +274,41 @@ func (bridge *PulseaudioMQTTBridge) onVolumeSet(client mqtt.Client, message mqtt
 		slog.Error("Could not set card profile", "error", err)
 		return
 	}
+}
+
+func (bridge *PulseaudioMQTTBridge) onVolumeChange(client mqtt.Client, message mqtt.Message) {
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
+
+	change, err := strconv.ParseFloat(string(message.Payload()), 32)
+	if err != nil {
+		slog.Error("Could not parse float", "payload", message.Payload())
+		return
+	}
+	bridge.PublishMQTT("pulseaudio/volume/change", "", false)
+
+	sink, err := bridge.PulseClient.DefaultSink()
+	if err != nil {
+		slog.Error("Could not retrieve default sink", "error", err)
+		return
+	}
+
+	err = bridge.PulseClient.ChangeSinkVolume(sink, float32(change))
+	if err != nil {
+		slog.Error("Could not set card profile", "error", err)
+		return
+	}
+}
+
+func CalculateIncrease(current, percent, max uint32) uint32 {
+	increment := (current * percent) / 100
+	if increment == 0 && percent > 0 {
+		increment = 1 // Ensure at least a minimum increment of 1 if percent > 0
+	}
+	if current+increment > max {
+		return max
+	}
+	return current + increment
 }
 
 func (bridge *PulseaudioMQTTBridge) onCardProfileSet(client mqtt.Client, message mqtt.Message) {
@@ -510,14 +548,20 @@ func (bridge *PulseaudioMQTTBridge) checkUpdateSinks() (bool, error) {
 	changeDetected := false
 	var s []PulseAudioSink
 	for _, sink := range sinks {
-		s = append(s, PulseAudioSink{sink.Name(), sink.ID(), sink.SinkIndex(), sink.State(), sink.Mute()})
+		s = append(s, PulseAudioSink{Name: sink.Name(),
+			Id:             sink.ID(),
+			SinkIndex:      sink.SinkIndex(),
+			State:          sink.State(),
+			Mute:           sink.Mute(),
+			BaseVolume:     sink.BaseVolume(),
+			ChannelVolumes: sink.ChannelVolumes()})
 	}
 
 	if len(s) != len(bridge.PulseAudioState.Sinks) {
 		changeDetected = true
 	} else {
 		for i := range s {
-			if s[i] != bridge.PulseAudioState.Sinks[i] {
+			if !s[i].Equals(&bridge.PulseAudioState.Sinks[i]) {
 				changeDetected = true
 				break
 			}
@@ -619,9 +663,16 @@ func (bridge *PulseaudioMQTTBridge) checkUpdateDefaultSink() (bool, error) {
 		return false, err
 	}
 
-	defaultSink := PulseAudioSink{sink.Name(), sink.ID(), sink.SinkIndex(), sink.State(), sink.Mute()}
+	defaultSink := PulseAudioSink{Name: sink.Name(),
+		Id:             sink.ID(),
+		SinkIndex:      sink.SinkIndex(),
+		State:          sink.State(),
+		Mute:           sink.Mute(),
+		BaseVolume:     sink.BaseVolume(),
+		ChannelVolumes: sink.ChannelVolumes()}
+
 	changeDetected := false
-	if defaultSink != bridge.PulseAudioState.DefaultSink {
+	if !defaultSink.Equals(&bridge.PulseAudioState.DefaultSink) {
 		bridge.PulseAudioState.DefaultSink = defaultSink
 		changeDetected = true
 	}
@@ -703,5 +754,30 @@ func (c *PulseAudioClient) Equals(other *PulseAudioClient) bool {
 		}
 	}
 
+	return true
+}
+
+func (p *PulseAudioSink) Equals(other *PulseAudioSink) bool {
+	if p == nil || other == nil {
+		return p == other
+	}
+
+	if p.Name != other.Name ||
+		p.Id != other.Id ||
+		p.SinkIndex != other.SinkIndex ||
+		p.State != other.State ||
+		p.Mute != other.Mute ||
+		p.BaseVolume != other.BaseVolume {
+		return false
+	}
+
+	if len(p.ChannelVolumes) != len(other.ChannelVolumes) {
+		return false
+	}
+	for i := range p.ChannelVolumes {
+		if p.ChannelVolumes[i] != other.ChannelVolumes[i] {
+			return false
+		}
+	}
 	return true
 }
