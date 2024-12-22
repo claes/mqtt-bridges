@@ -170,12 +170,12 @@ const (
 )
 
 // HIDReport represents a keyboard HID input report
-type HIDReport struct {
+type HIDReportOld struct {
 	Modifiers Modifier   // Modifier byte
 	Keys      [6]Keycode // Up to 6 simultaneously pressed keys
 }
 
-func (h *HIDReport) ToJSON() (string, error) {
+func (h *HIDReportOld) ToJSON() (string, error) {
 	// Convert the struct to JSON
 	jsonData, err := json.Marshal(h)
 	if err != nil {
@@ -187,12 +187,12 @@ func (h *HIDReport) ToJSON() (string, error) {
 }
 
 // ParseHIDReport parses the raw HID report byte array into an HIDReport struct
-func ParseHIDReport(data []byte) (*HIDReport, error) {
+func ParseHIDReport(data []byte) (*HIDReportOld, error) {
 	if len(data) < 8 {
 		return nil, fmt.Errorf("invalid report length: expected 8 bytes, got %d", len(data))
 	}
 
-	report := &HIDReport{
+	report := &HIDReportOld{
 		Modifiers: Modifier(data[0]), // Modifier byte
 		Keys: [6]Keycode{
 			Keycode(data[2]),
