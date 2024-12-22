@@ -321,39 +321,13 @@ func ModifierName(modCode byte) string {
 	return fmt.Sprintf("Unknown Modifier (0x%X)", modCode)
 }
 
-// HIDReport represents a readable HID report.
-type HIDReport struct {
+// ReadableHIDReport represents a readable HID report.
+type ReadableHIDReport struct {
 	Modifiers []string `json:"modifiers"`
 	Keys      []string `json:"keys"`
 }
 
-// NativeHIDReport represents a HID report using native types.
-type NativeHIDReport struct {
-	Modifiers byte  `json:"modifiers"`
-	Keys      []int `json:"keys"`
-}
-
-func CreateNativeHIDReport(report []byte) (*NativeHIDReport, error) {
-	if len(report) < 8 {
-		return nil, fmt.Errorf("HID report must be at least 8 bytes long")
-	}
-
-	nativeReport := &NativeHIDReport{
-		Modifiers: report[0],
-		Keys:      byteSliceToIntSlice(report[2:8]),
-	}
-	return nativeReport, nil
-}
-
-func byteSliceToIntSlice(b []byte) []int {
-	intSlice := make([]int, len(b)) // Create a new slice of integers with the same length as the byte slice
-	for i, v := range b {
-		intSlice[i] = int(v) // Convert each byte to an int
-	}
-	return intSlice
-}
-
-func CreateReadableHIDReport(report []byte) (*HIDReport, error) {
+func CreateReadableHIDReport(report []byte) (*ReadableHIDReport, error) {
 	if len(report) < 8 {
 		return nil, fmt.Errorf("HID report must be at least 8 bytes long")
 	}
@@ -376,42 +350,14 @@ func CreateReadableHIDReport(report []byte) (*HIDReport, error) {
 		}
 	}
 
-	hidReport := HIDReport{
+	hidReport := ReadableHIDReport{
 		Modifiers: modifierNames,
 		Keys:      keyNames,
 	}
 	return &hidReport, nil
 }
 
-// HIDReportToJSON converts a HID report to a readable JSON format.
-func HIDReportToJSON(report []byte) (string, error) {
-
-	hidReport, err := CreateReadableHIDReport(report)
-	if err != nil {
-		return "", err
-	}
-	jsonData, err := json.MarshalIndent(hidReport, "", "  ")
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonData), nil
-}
-
-// NativeHIDReportToJSON converts a native HID report to a JSON format.
-func NativeHIDReportToJSON(report []byte) (string, error) {
-	nativeReport, err := CreateNativeHIDReport(report)
-	if err != nil {
-		return "", err
-	}
-	jsonData, err := json.MarshalIndent(nativeReport, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(jsonData), nil
-}
-
-func ConvertToNative(hid HIDReport) NativeHIDReport {
+func (hid *ReadableHIDReport) ToNativeHIDReport() NativeHIDReport {
 	modifiers := byte(0)
 	for _, mod := range hid.Modifiers {
 		for i := 0; i < 8; i++ {
@@ -437,7 +383,49 @@ func ConvertToNative(hid HIDReport) NativeHIDReport {
 	}
 }
 
-func ConvertToReadable(native NativeHIDReport) HIDReport {
+func (readableReport *ReadableHIDReport) ToJSON() (string, error) {
+	jsonData, err := json.MarshalIndent(readableReport, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
+}
+
+// NativeHIDReport represents a HID report using native types.
+type NativeHIDReport struct {
+	Modifiers byte  `json:"modifiers"`
+	Keys      []int `json:"keys"` //use [] int for better JSON serialization
+}
+
+func CreateNativeHIDReport(report []byte) (*NativeHIDReport, error) {
+	if len(report) < 8 {
+		return nil, fmt.Errorf("HID report must be at least 8 bytes long")
+	}
+
+	nativeReport := &NativeHIDReport{
+		Modifiers: report[0],
+		Keys:      byteSliceToIntSlice(report[2:8]),
+	}
+	return nativeReport, nil
+}
+
+func byteSliceToIntSlice(b []byte) []int {
+	intSlice := make([]int, len(b)) // Create a new slice of integers with the same length as the byte slice
+	for i, v := range b {
+		intSlice[i] = int(v) // Convert each byte to an int
+	}
+	return intSlice
+}
+
+func (nativeReport *NativeHIDReport) ToJSON() (string, error) {
+	jsonData, err := json.MarshalIndent(nativeReport, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
+}
+
+func (native *NativeHIDReport) ToReadableHIDReport() ReadableHIDReport {
 	modifierNames := []string{}
 	for i := 0; i < 8; i++ {
 		bit := byte(1 << i)
@@ -453,7 +441,7 @@ func ConvertToReadable(native NativeHIDReport) HIDReport {
 		}
 	}
 
-	return HIDReport{
+	return ReadableHIDReport{
 		Modifiers: modifierNames,
 		Keys:      keyNames,
 	}

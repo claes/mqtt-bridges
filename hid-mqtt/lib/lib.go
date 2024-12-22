@@ -2,7 +2,6 @@ package lib
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -100,24 +99,16 @@ func (bridge *HIDMQTTBridge) EventLoop(ctx context.Context) {
 		slog.Info("Read data")
 
 		data := buf[:n]
-		na, _ := CreateNativeHIDReport(data)
-		r := ConvertToReadable(*na)
-		jsonData, err := json.MarshalIndent(r, "", "  ")
-		readable := string(jsonData)
+		nativeReport, _ := CreateNativeHIDReport(data)
+		readableReport1 := nativeReport.ToReadableHIDReport()
+		readableReport2, _ := CreateReadableHIDReport(data)
 
-		report, err := ParseHIDReport(data)
-		// if err != nil {
-		// 	slog.Error("Error parsing HID report", "error", err)
-		// 	continue
-		// }
-		// json, err := report.ToJSON()
-		json, err := NativeHIDReportToJSON(data)
-
-		if err != nil {
-			slog.Error("Error generating JSON for HID report", "error", err, "hidReport", report)
-		}
-		slog.Info("HID report", "hidReport", json)
-		slog.Info("Readable HID report", "readableHID", readable)
+		nativeJSON, _ := nativeReport.ToJSON()
+		readableJSON1, _ := readableReport1.ToJSON()
+		readableJSON2, _ := readableReport2.ToJSON()
+		slog.Info("HID report", "hidReport", nativeJSON)
+		slog.Info("Readable HID report 1", "readableHID", readableJSON1)
+		slog.Info("Readable HID report 2", "readableHID", readableJSON2)
 		bridge.PublishMQTT("hid/device/data", string(data), false)
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -175,95 +166,3 @@ const (
 	KeyEnter Keycode = 0x28
 	KeySpace Keycode = 0x2C
 )
-
-// HIDReport represents a keyboard HID input report
-type HIDReportOld struct {
-	Modifiers Modifier   // Modifier byte
-	Keys      [6]Keycode // Up to 6 simultaneously pressed keys
-}
-
-func (h *HIDReportOld) ToJSON() (string, error) {
-	// Convert the struct to JSON
-	jsonData, err := json.Marshal(h)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal HIDReport to JSON: %w", err)
-	}
-
-	// Return as a string
-	return string(jsonData), nil
-}
-
-// ParseHIDReport parses the raw HID report byte array into an HIDReport struct
-func ParseHIDReport(data []byte) (*HIDReportOld, error) {
-	if len(data) < 8 {
-		return nil, fmt.Errorf("invalid report length: expected 8 bytes, got %d", len(data))
-	}
-
-	report := &HIDReportOld{
-		Modifiers: Modifier(data[0]), // Modifier byte
-		Keys: [6]Keycode{
-			Keycode(data[2]),
-			Keycode(data[3]),
-			Keycode(data[4]),
-			Keycode(data[5]),
-			Keycode(data[6]),
-			Keycode(data[7]),
-		},
-	}
-
-	return report, nil
-}
-
-// ModifierToString converts Modifier enums to a readable list of names
-func ModifierToString(modifier Modifier) []string {
-	var keys []string
-	if modifier&LeftCtrl != 0 {
-		keys = append(keys, "LeftCtrl")
-	}
-	if modifier&LeftShift != 0 {
-		keys = append(keys, "LeftShift")
-	}
-	if modifier&LeftAlt != 0 {
-		keys = append(keys, "LeftAlt")
-	}
-	if modifier&LeftGUI != 0 {
-		keys = append(keys, "LeftGUI")
-	}
-	if modifier&RightCtrl != 0 {
-		keys = append(keys, "RightCtrl")
-	}
-	if modifier&RightShift != 0 {
-		keys = append(keys, "RightShift")
-	}
-	if modifier&RightAlt != 0 {
-		keys = append(keys, "RightAlt")
-	}
-	if modifier&RightGUI != 0 {
-		keys = append(keys, "RightGUI")
-	}
-	return keys
-}
-
-// KeycodesToString converts Keycode enums to readable names
-func KeycodesToString(keys [6]Keycode) []string {
-	var pressedKeys []string
-	for _, key := range keys {
-		switch key {
-		case KeyA:
-			pressedKeys = append(pressedKeys, "A")
-		case KeyB:
-			pressedKeys = append(pressedKeys, "B")
-		case KeyC:
-			pressedKeys = append(pressedKeys, "C")
-		case KeySpace:
-			pressedKeys = append(pressedKeys, "Space")
-		case KeyEnter:
-			pressedKeys = append(pressedKeys, "Enter")
-		default:
-			if key != 0 {
-				pressedKeys = append(pressedKeys, fmt.Sprintf("Unknown(0x%x)", key))
-			}
-		}
-	}
-	return pressedKeys
-}
