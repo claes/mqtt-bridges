@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -99,6 +100,17 @@ func (bridge *HIDMQTTBridge) EventLoop(ctx context.Context) {
 		slog.Info("Read data")
 
 		data := buf[:n]
+		report, err := ParseHIDReport(data)
+		// if err != nil {
+		// 	slog.Error("Error parsing HID report", "error", err)
+		// 	continue
+		// }
+		// json, err := report.ToJSON()
+		json, err := HIDReportToJSON(data)
+		if err != nil {
+			slog.Error("Error generating JSON for HID report", "error", err, "hidReport", report)
+		}
+		slog.Info("HID report", "hidReport", json)
 		bridge.PublishMQTT("hid/device/data", string(data), false)
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -161,6 +173,17 @@ const (
 type HIDReport struct {
 	Modifiers Modifier   // Modifier byte
 	Keys      [6]Keycode // Up to 6 simultaneously pressed keys
+}
+
+func (h *HIDReport) ToJSON() (string, error) {
+	// Convert the struct to JSON
+	jsonData, err := json.Marshal(h)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal HIDReport to JSON: %w", err)
+	}
+
+	// Return as a string
+	return string(jsonData), nil
 }
 
 // ParseHIDReport parses the raw HID report byte array into an HIDReport struct
