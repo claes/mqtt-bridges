@@ -197,7 +197,7 @@ const (
 	KEY_MEDIA_CALC         = 0xFB
 )
 
-var keyNames = map[int]string{
+var KeyNames = map[int]string{
 	KEY_NONE:       "None",
 	KEY_ERR_OVF:    "Error Overflow",
 	KEY_A:          "A",
@@ -296,7 +296,7 @@ var keyNames = map[int]string{
 	KEY_KP9:        "Keypad 9",
 	KEY_KP0:        "Keypad 0"}
 
-var modifierNames = map[byte]string{
+var ModifierNames = map[byte]string{
 	KEY_MOD_LCTRL:  "Left Control",
 	KEY_MOD_LSHIFT: "Left Shift",
 	KEY_MOD_LALT:   "Left Alt",
@@ -308,14 +308,14 @@ var modifierNames = map[byte]string{
 }
 
 func KeyName(keyCode int) string {
-	if name, found := keyNames[keyCode]; found {
+	if name, found := KeyNames[keyCode]; found {
 		return name
 	}
 	return fmt.Sprintf("Unknown Key (0x%X)", keyCode)
 }
 
 func ModifierName(modCode byte) string {
-	if name, found := modifierNames[modCode]; found {
+	if name, found := ModifierNames[modCode]; found {
 		return name
 	}
 	return fmt.Sprintf("Unknown Modifier (0x%X)", modCode)
@@ -370,7 +370,7 @@ func (hid *ReadableHIDReport) ToNativeHIDReport() NativeHIDReport {
 
 	keys := []int{}
 	for _, key := range hid.Keys {
-		for code := range keyNames {
+		for code := range KeyNames {
 			if KeyName(code) == key {
 				keys = append(keys, int(code))
 			}
@@ -384,7 +384,7 @@ func (hid *ReadableHIDReport) ToNativeHIDReport() NativeHIDReport {
 }
 
 func (readableReport *ReadableHIDReport) ToJSON() (string, error) {
-	jsonData, err := json.MarshalIndent(readableReport, "", "  ")
+	jsonData, err := json.Marshal(readableReport)
 	if err != nil {
 		return "", err
 	}
@@ -418,7 +418,7 @@ func byteSliceToIntSlice(b []byte) []int {
 }
 
 func (nativeReport *NativeHIDReport) ToJSON() (string, error) {
-	jsonData, err := json.MarshalIndent(nativeReport, "", "  ")
+	jsonData, err := json.Marshal(nativeReport)
 	if err != nil {
 		return "", err
 	}
