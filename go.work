@@ -10,4 +10,5 @@ use (
 	./routeros-mqtt
 	./samsungtv-mqtt
 	./snapcast-mqtt
+	./hid-mqtt
 )
