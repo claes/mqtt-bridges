@@ -197,124 +197,124 @@ const (
 	KEY_MEDIA_CALC         = 0xFB
 )
 
-// KeyName returns the name of the key for the given key code.
-func KeyName(keyCode byte) string {
-	keyNames := map[byte]string{
-		KEY_NONE:       "None",
-		KEY_ERR_OVF:    "Error Overflow",
-		KEY_A:          "A",
-		KEY_B:          "B",
-		KEY_C:          "C",
-		KEY_D:          "D",
-		KEY_E:          "E",
-		KEY_F:          "F",
-		KEY_G:          "G",
-		KEY_H:          "H",
-		KEY_I:          "I",
-		KEY_J:          "J",
-		KEY_K:          "K",
-		KEY_L:          "L",
-		KEY_M:          "M",
-		KEY_N:          "N",
-		KEY_O:          "O",
-		KEY_P:          "P",
-		KEY_Q:          "Q",
-		KEY_R:          "R",
-		KEY_S:          "S",
-		KEY_T:          "T",
-		KEY_U:          "U",
-		KEY_V:          "V",
-		KEY_W:          "W",
-		KEY_X:          "X",
-		KEY_Y:          "Y",
-		KEY_Z:          "Z",
-		KEY_1:          "1",
-		KEY_2:          "2",
-		KEY_3:          "3",
-		KEY_4:          "4",
-		KEY_5:          "5",
-		KEY_6:          "6",
-		KEY_7:          "7",
-		KEY_8:          "8",
-		KEY_9:          "9",
-		KEY_0:          "0",
-		KEY_ENTER:      "Enter",
-		KEY_ESC:        "Escape",
-		KEY_BACKSPACE:  "Backspace",
-		KEY_TAB:        "Tab",
-		KEY_SPACE:      "Space",
-		KEY_MINUS:      "-",
-		KEY_EQUAL:      "=",
-		KEY_LEFTBRACE:  "[",
-		KEY_RIGHTBRACE: "]",
-		KEY_BACKSLASH:  "\\",
-		KEY_HASHTILDE:  "#",
-		KEY_SEMICOLON:  ";",
-		KEY_APOSTROPHE: "'",
-		KEY_GRAVE:      "`",
-		KEY_COMMA:      ",",
-		KEY_DOT:        ".",
-		KEY_SLASH:      "/",
-		KEY_CAPSLOCK:   "Caps Lock",
-		KEY_F1:         "F1",
-		KEY_F2:         "F2",
-		KEY_F3:         "F3",
-		KEY_F4:         "F4",
-		KEY_F5:         "F5",
-		KEY_F6:         "F6",
-		KEY_F7:         "F7",
-		KEY_F8:         "F8",
-		KEY_F9:         "F9",
-		KEY_F10:        "F10",
-		KEY_F11:        "F11",
-		KEY_F12:        "F12",
-		KEY_SYSRQ:      "Print Screen",
-		KEY_SCROLLLOCK: "Scroll Lock",
-		KEY_PAUSE:      "Pause",
-		KEY_INSERT:     "Insert",
-		KEY_HOME:       "Home",
-		KEY_PAGEUP:     "Page Up",
-		KEY_DELETE:     "Delete",
-		KEY_END:        "End",
-		KEY_PAGEDOWN:   "Page Down",
-		KEY_RIGHT:      "Right Arrow",
-		KEY_LEFT:       "Left Arrow",
-		KEY_DOWN:       "Down Arrow",
-		KEY_UP:         "Up Arrow",
-		KEY_NUMLOCK:    "Num Lock",
-		KEY_KPSLASH:    "Keypad /",
-		KEY_KPASTERISK: "Keypad *",
-		KEY_KPMINUS:    "Keypad -",
-		KEY_KPPLUS:     "Keypad +",
-		KEY_KPENTER:    "Keypad Enter",
-		KEY_KP1:        "Keypad 1",
-		KEY_KP2:        "Keypad 2",
-		KEY_KP3:        "Keypad 3",
-		KEY_KP4:        "Keypad 4",
-		KEY_KP5:        "Keypad 5",
-		KEY_KP6:        "Keypad 6",
-		KEY_KP7:        "Keypad 7",
-		KEY_KP8:        "Keypad 8",
-		KEY_KP9:        "Keypad 9",
-		KEY_KP0:        "Keypad 0"}
+var keyNames = map[int]string{
+	KEY_NONE:       "None",
+	KEY_ERR_OVF:    "Error Overflow",
+	KEY_A:          "A",
+	KEY_B:          "B",
+	KEY_C:          "C",
+	KEY_D:          "D",
+	KEY_E:          "E",
+	KEY_F:          "F",
+	KEY_G:          "G",
+	KEY_H:          "H",
+	KEY_I:          "I",
+	KEY_J:          "J",
+	KEY_K:          "K",
+	KEY_L:          "L",
+	KEY_M:          "M",
+	KEY_N:          "N",
+	KEY_O:          "O",
+	KEY_P:          "P",
+	KEY_Q:          "Q",
+	KEY_R:          "R",
+	KEY_S:          "S",
+	KEY_T:          "T",
+	KEY_U:          "U",
+	KEY_V:          "V",
+	KEY_W:          "W",
+	KEY_X:          "X",
+	KEY_Y:          "Y",
+	KEY_Z:          "Z",
+	KEY_1:          "1",
+	KEY_2:          "2",
+	KEY_3:          "3",
+	KEY_4:          "4",
+	KEY_5:          "5",
+	KEY_6:          "6",
+	KEY_7:          "7",
+	KEY_8:          "8",
+	KEY_9:          "9",
+	KEY_0:          "0",
+	KEY_ENTER:      "Enter",
+	KEY_ESC:        "Escape",
+	KEY_BACKSPACE:  "Backspace",
+	KEY_TAB:        "Tab",
+	KEY_SPACE:      "Space",
+	KEY_MINUS:      "-",
+	KEY_EQUAL:      "=",
+	KEY_LEFTBRACE:  "[",
+	KEY_RIGHTBRACE: "]",
+	KEY_BACKSLASH:  "\\",
+	KEY_HASHTILDE:  "#",
+	KEY_SEMICOLON:  ";",
+	KEY_APOSTROPHE: "'",
+	KEY_GRAVE:      "`",
+	KEY_COMMA:      ",",
+	KEY_DOT:        ".",
+	KEY_SLASH:      "/",
+	KEY_CAPSLOCK:   "Caps Lock",
+	KEY_F1:         "F1",
+	KEY_F2:         "F2",
+	KEY_F3:         "F3",
+	KEY_F4:         "F4",
+	KEY_F5:         "F5",
+	KEY_F6:         "F6",
+	KEY_F7:         "F7",
+	KEY_F8:         "F8",
+	KEY_F9:         "F9",
+	KEY_F10:        "F10",
+	KEY_F11:        "F11",
+	KEY_F12:        "F12",
+	KEY_SYSRQ:      "Print Screen",
+	KEY_SCROLLLOCK: "Scroll Lock",
+	KEY_PAUSE:      "Pause",
+	KEY_INSERT:     "Insert",
+	KEY_HOME:       "Home",
+	KEY_PAGEUP:     "Page Up",
+	KEY_DELETE:     "Delete",
+	KEY_END:        "End",
+	KEY_PAGEDOWN:   "Page Down",
+	KEY_RIGHT:      "Right Arrow",
+	KEY_LEFT:       "Left Arrow",
+	KEY_DOWN:       "Down Arrow",
+	KEY_UP:         "Up Arrow",
+	KEY_NUMLOCK:    "Num Lock",
+	KEY_KPSLASH:    "Keypad /",
+	KEY_KPASTERISK: "Keypad *",
+	KEY_KPMINUS:    "Keypad -",
+	KEY_KPPLUS:     "Keypad +",
+	KEY_KPENTER:    "Keypad Enter",
+	KEY_KP1:        "Keypad 1",
+	KEY_KP2:        "Keypad 2",
+	KEY_KP3:        "Keypad 3",
+	KEY_KP4:        "Keypad 4",
+	KEY_KP5:        "Keypad 5",
+	KEY_KP6:        "Keypad 6",
+	KEY_KP7:        "Keypad 7",
+	KEY_KP8:        "Keypad 8",
+	KEY_KP9:        "Keypad 9",
+	KEY_KP0:        "Keypad 0"}
+
+var modifierNames = map[byte]string{
+	KEY_MOD_LCTRL:  "Left Control",
+	KEY_MOD_LSHIFT: "Left Shift",
+	KEY_MOD_LALT:   "Left Alt",
+	KEY_MOD_LMETA:  "Left Meta",
+	KEY_MOD_RCTRL:  "Right Control",
+	KEY_MOD_RSHIFT: "Right Shift",
+	KEY_MOD_RALT:   "Right Alt",
+	KEY_MOD_RMETA:  "Right Meta",
+}
+
+func KeyName(keyCode int) string {
 	if name, found := keyNames[keyCode]; found {
 		return name
 	}
 	return fmt.Sprintf("Unknown Key (0x%X)", keyCode)
 }
 
-// ModifierName returns the name of the modifier for the given modifier code.
 func ModifierName(modCode byte) string {
-	modifierNames := map[byte]string{
-		KEY_MOD_LCTRL:  "Left Control",
-		KEY_MOD_LSHIFT: "Left Shift",
-		KEY_MOD_LALT:   "Left Alt",
-		KEY_MOD_LMETA:  "Left Meta",
-		KEY_MOD_RCTRL:  "Right Control",
-		KEY_MOD_RSHIFT: "Right Shift",
-		KEY_MOD_RALT:   "Right Alt",
-		KEY_MOD_RMETA:  "Right Meta",
-	}
 	if name, found := modifierNames[modCode]; found {
 		return name
 	}
@@ -329,14 +329,33 @@ type HIDReport struct {
 
 // NativeHIDReport represents a HID report using native types.
 type NativeHIDReport struct {
-	Modifiers byte   `json:"modifiers"`
-	Keys      []byte `json:"keys"`
+	Modifiers byte  `json:"modifiers"`
+	Keys      []int `json:"keys"`
 }
 
-// HIDReportToJSON converts a HID report to a readable JSON format.
-func HIDReportToJSON(report []byte) (string, error) {
+func CreateNativeHIDReport(report []byte) (*NativeHIDReport, error) {
 	if len(report) < 8 {
-		return "", fmt.Errorf("HID report must be at least 8 bytes long")
+		return nil, fmt.Errorf("HID report must be at least 8 bytes long")
+	}
+
+	nativeReport := &NativeHIDReport{
+		Modifiers: report[0],
+		Keys:      byteSliceToIntSlice(report[2:8]),
+	}
+	return nativeReport, nil
+}
+
+func byteSliceToIntSlice(b []byte) []int {
+	intSlice := make([]int, len(b)) // Create a new slice of integers with the same length as the byte slice
+	for i, v := range b {
+		intSlice[i] = int(v) // Convert each byte to an int
+	}
+	return intSlice
+}
+
+func CreateReadableHIDReport(report []byte) (*HIDReport, error) {
+	if len(report) < 8 {
+		return nil, fmt.Errorf("HID report must be at least 8 bytes long")
 	}
 
 	modifiers := report[0]
@@ -353,7 +372,7 @@ func HIDReportToJSON(report []byte) (string, error) {
 	keyNames := []string{}
 	for _, key := range keys {
 		if key != 0 {
-			keyNames = append(keyNames, KeyName(key))
+			keyNames = append(keyNames, KeyName(int(key)))
 		}
 	}
 
@@ -361,7 +380,16 @@ func HIDReportToJSON(report []byte) (string, error) {
 		Modifiers: modifierNames,
 		Keys:      keyNames,
 	}
+	return &hidReport, nil
+}
 
+// HIDReportToJSON converts a HID report to a readable JSON format.
+func HIDReportToJSON(report []byte) (string, error) {
+
+	hidReport, err := CreateReadableHIDReport(report)
+	if err != nil {
+		return "", err
+	}
 	jsonData, err := json.MarshalIndent(hidReport, "", "  ")
 	if err != nil {
 		return "", err
@@ -372,24 +400,17 @@ func HIDReportToJSON(report []byte) (string, error) {
 
 // NativeHIDReportToJSON converts a native HID report to a JSON format.
 func NativeHIDReportToJSON(report []byte) (string, error) {
-	if len(report) < 8 {
-		return "", fmt.Errorf("HID report must be at least 8 bytes long")
+	nativeReport, err := CreateNativeHIDReport(report)
+	if err != nil {
+		return "", err
 	}
-
-	nativeReport := NativeHIDReport{
-		Modifiers: report[0],
-		Keys:      report[2:8],
-	}
-
 	jsonData, err := json.MarshalIndent(nativeReport, "", "  ")
 	if err != nil {
 		return "", err
 	}
-
 	return string(jsonData), nil
 }
 
-// ConvertToNative converts a HIDReport to a NativeHIDReport.
 func ConvertToNative(hid HIDReport) NativeHIDReport {
 	modifiers := byte(0)
 	for _, mod := range hid.Modifiers {
@@ -401,31 +422,11 @@ func ConvertToNative(hid HIDReport) NativeHIDReport {
 		}
 	}
 
-	keys := []byte{}
+	keys := []int{}
 	for _, key := range hid.Keys {
-		for code := range map[byte]string{
-			KEY_NONE: "None",
-			KEY_A:    "A",
-			KEY_B:    "B",
-			KEY_C:    "C",
-			KEY_D:    "D",
-			KEY_E:    "E",
-			KEY_F:    "F",
-			KEY_G:    "G",
-			KEY_H:    "H",
-			KEY_I:    "I",
-			KEY_J:    "J",
-			KEY_K:    "K",
-			KEY_L:    "L",
-			KEY_M:    "M",
-			KEY_N:    "N",
-			KEY_O:    "O",
-			KEY_P:    "P",
-			KEY_Q:    "Q",
-			KEY_R:    "R",
-		} {
+		for code := range keyNames {
 			if KeyName(code) == key {
-				keys = append(keys, code)
+				keys = append(keys, int(code))
 			}
 		}
 	}
@@ -436,7 +437,6 @@ func ConvertToNative(hid HIDReport) NativeHIDReport {
 	}
 }
 
-// ConvertToReadable converts a NativeHIDReport to a HIDReport.
 func ConvertToReadable(native NativeHIDReport) HIDReport {
 	modifierNames := []string{}
 	for i := 0; i < 8; i++ {

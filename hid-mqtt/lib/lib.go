@@ -100,17 +100,24 @@ func (bridge *HIDMQTTBridge) EventLoop(ctx context.Context) {
 		slog.Info("Read data")
 
 		data := buf[:n]
+		na, _ := CreateNativeHIDReport(data)
+		r := ConvertToReadable(*na)
+		jsonData, err := json.MarshalIndent(r, "", "  ")
+		readable := string(jsonData)
+
 		report, err := ParseHIDReport(data)
 		// if err != nil {
 		// 	slog.Error("Error parsing HID report", "error", err)
 		// 	continue
 		// }
 		// json, err := report.ToJSON()
-		json, err := HIDReportToJSON(data)
+		json, err := NativeHIDReportToJSON(data)
+
 		if err != nil {
 			slog.Error("Error generating JSON for HID report", "error", err, "hidReport", report)
 		}
 		slog.Info("HID report", "hidReport", json)
+		slog.Info("Readable HID report", "readableHID", readable)
 		bridge.PublishMQTT("hid/device/data", string(data), false)
 		time.Sleep(100 * time.Millisecond)
 	}
