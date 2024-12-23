@@ -104,7 +104,7 @@ func (bridge *BluezMediaPlayerMQTTBridge) onMediaControlCommandSend(client mqtt.
 
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediacontrol/command/send", "", false)
+		bridge.PublishStringMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediacontrol/command/send", "", false)
 		method := fmt.Sprintf("org.bluez.MediaControl1.%s", command)
 		call := bridge.BluezMediaControl.Call(method, 0)
 		if call.Err != nil {
@@ -119,7 +119,7 @@ func (bridge *BluezMediaPlayerMQTTBridge) onMediaPlayerCommandSend(client mqtt.C
 
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediaplayer/command/send", "", false)
+		bridge.PublishStringMQTT("bluez/"+bridge.BluezMediaPlayerConfig.BluetoothMACAddress+"/mediaplayer/command/send", "", false)
 		method := fmt.Sprintf("org.bluez.MediaPlayer1.%s", command)
 		call := bridge.BluezMediaPlayer.Call(method, 0)
 		if call.Err != nil {

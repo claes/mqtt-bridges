@@ -177,7 +177,7 @@ func NewPulseaudioMQTTBridge(config PulseClientConfig, mqttClient mqtt.Client, t
 func (bridge *PulseaudioMQTTBridge) onInitialize(client mqtt.Client, message mqtt.Message) {
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("pulseaudio/initialize", "", false)
+		bridge.PublishStringMQTT("pulseaudio/initialize", "", false)
 		bridge.initialize()
 	}
 }
@@ -199,7 +199,7 @@ func (bridge *PulseaudioMQTTBridge) onDefaultSinkSet(client mqtt.Client, message
 
 	defaultSink := string(message.Payload())
 	if defaultSink != "" {
-		bridge.PublishMQTT("pulseaudio/sink/default/set", "", false)
+		bridge.PublishStringMQTT("pulseaudio/sink/default/set", "", false)
 		bridge.PulseClient.protoClient.Request(&proto.SetDefaultSink{SinkName: defaultSink}, nil)
 	}
 }
@@ -219,7 +219,7 @@ func (bridge *PulseaudioMQTTBridge) onSinkInputReq(client mqtt.Client, message m
 		if strings.EqualFold(sinkInputReq.Command, "movesink") {
 			sinkName := string(message.Payload())
 			if sinkName != "" {
-				bridge.PublishMQTT("pulseaudio/sinkinput/req", "", false)
+				bridge.PublishStringMQTT("pulseaudio/sinkinput/req", "", false)
 				err := bridge.PulseClient.protoClient.Request(&proto.MoveSinkInput{
 					SinkInputIndex: sinkInputReq.SinkInputIndex, DeviceIndex: proto.Undefined, DeviceName: sinkInputReq.SinkName}, nil)
 
@@ -240,7 +240,7 @@ func (bridge *PulseaudioMQTTBridge) onMuteSet(client mqtt.Client, message mqtt.M
 	if err != nil {
 		slog.Error("Could not parse bool", "messagePayload", message.Payload())
 	}
-	bridge.PublishMQTT("pulseaudio/mute/set", "", false)
+	bridge.PublishStringMQTT("pulseaudio/mute/set", "", false)
 	sink, err := bridge.PulseClient.DefaultSink()
 	if err != nil {
 		slog.Error("Could not retrieve default sink", "error", err)
@@ -262,7 +262,7 @@ func (bridge *PulseaudioMQTTBridge) onVolumeSet(client mqtt.Client, message mqtt
 			slog.Error("Could not parse float", "payload", message.Payload())
 			return
 		}
-		bridge.PublishMQTT("pulseaudio/volume/set", "", false)
+		bridge.PublishStringMQTT("pulseaudio/volume/set", "", false)
 
 		sink, err := bridge.PulseClient.DefaultSink()
 		if err != nil {
@@ -288,7 +288,7 @@ func (bridge *PulseaudioMQTTBridge) onVolumeChange(client mqtt.Client, message m
 			slog.Error("Could not parse float", "payload", message.Payload())
 			return
 		}
-		bridge.PublishMQTT("pulseaudio/volume/change", "", false)
+		bridge.PublishStringMQTT("pulseaudio/volume/change", "", false)
 
 		sink, err := bridge.PulseClient.DefaultSink()
 		if err != nil {
@@ -331,7 +331,7 @@ func (bridge *PulseaudioMQTTBridge) onCardProfileSet(client mqtt.Client, message
 
 		profile := string(message.Payload())
 		if profile != "" {
-			bridge.PublishMQTT("pulseaudio/cardprofile/"+cardStr+"/set", "", false)
+			bridge.PublishStringMQTT("pulseaudio/cardprofile/"+cardStr+"/set", "", false)
 			err = bridge.PulseClient.protoClient.Request(&proto.SetCardProfile{CardIndex: uint32(card), ProfileName: profile}, nil)
 			if err != nil {
 				slog.Error("Could not set card profile", "error", err)
@@ -382,8 +382,8 @@ func (bridge *PulseaudioMQTTBridge) EventLoop(ctx context.Context) {
 		case event := <-eventChannels[proto.EventRemove]:
 			slog.Debug("Event remove", "event", event)
 		case event := <-eventChannels[proto.EventChange]:
-			slog.Info("Event change", "event", event)
-
+			slog.Info("Event change", "event", event, "eventFacility",
+				event.GetFacility(), "eventType", event.GetType())
 			var err error
 			c := DetectedChanges{}
 
@@ -439,82 +439,37 @@ func (bridge *PulseaudioMQTTBridge) publishState() {
 }
 
 func (bridge *PulseaudioMQTTBridge) publishStateGranular(c DetectedChanges) {
-	jsonState, err := json.Marshal(bridge.PulseAudioState)
-	if err != nil {
-		slog.Error("Could not serialize state", "error", err)
-		return
-	}
 	//TODO remove?
-	bridge.PublishMQTT("pulseaudio/state", string(jsonState), false)
+	bridge.PublishJSONMQTT("pulseaudio/state", bridge.PulseAudioState, false)
 
 	if c.defaultSinkChanged || c.sinkInputsChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.DefaultSink)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/defaultsink", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/defaultsink", bridge.PulseAudioState.DefaultSink, false)
 	}
 
 	if c.defaultSourceChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.DefaultSource)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/defaultsource", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/defaultsource", bridge.PulseAudioState.DefaultSource, false)
 	}
 
 	if c.activeProfileChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.ActiveProfilePerCard)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/activeprofilepercard", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/activeprofilepercard", bridge.PulseAudioState.ActiveProfilePerCard, false)
 	}
 
 	if c.clientsChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.Clients)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/clients", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/clients", bridge.PulseAudioState.Clients, false)
 	}
 
 	if c.sinkInputsChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.SinkInputs)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/sinkinputs", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/sinkinputs", bridge.PulseAudioState.SinkInputs, false)
 	}
 
 	if c.sinksChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.Sinks)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/sinks", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/sinks", bridge.PulseAudioState.Sinks, false)
 	}
 	if c.sourcesChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.Sources)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/sources", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/sources", bridge.PulseAudioState.Sources, false)
 	}
 	if c.cardsChanged {
-		jsonState, err = json.Marshal(bridge.PulseAudioState.Cards)
-		if err != nil {
-			slog.Error("Could not serialize state", "error", err)
-			return
-		}
-		bridge.PublishMQTT("pulseaudio/cards", string(jsonState), false)
+		bridge.PublishJSONMQTT("pulseaudio/cards", bridge.PulseAudioState.Cards, false)
 	}
 }
 

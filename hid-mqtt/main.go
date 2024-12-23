@@ -48,7 +48,13 @@ func main() {
 		return
 	}
 
-	hidConfig := hidmqtt.HIDConfig{VendorID: uint16(vendorID), ProductID: uint16(productID)}
+	hidConfig := hidmqtt.HIDBridgeConfig{
+		VendorID:        uint16(vendorID),
+		ProductID:       uint16(productID),
+		PublishBytes:    false,
+		PublishNative:   true,
+		PublishReadable: true,
+	}
 
 	mqttClient, err := common.CreateMQTTClient(*mqttBroker)
 	if err != nil {

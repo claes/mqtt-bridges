@@ -4,6 +4,7 @@ use (
 	./common
 	
 	./cec-mqtt
+	./mpd-mqtt
 	./bluez-mqtt
 	./pulseaudio-mqtt
 	./rotel-mqtt

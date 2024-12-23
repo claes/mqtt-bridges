@@ -17,6 +17,7 @@ import (
 type HIDMQTTBridge struct {
 	common.BaseMQTTBridge
 	HIDDevice hid.Device
+	HIDConfig HIDBridgeConfig
 	sendMutex sync.Mutex
 }
 
@@ -24,11 +25,12 @@ type MQTTClientConfig struct {
 	MQTTBroker string
 }
 
-type HIDConfig struct {
-	VendorID, ProductID uint16
+type HIDBridgeConfig struct {
+	VendorID, ProductID                          uint16
+	PublishBytes, PublishNative, PublishReadable bool
 }
 
-func CreateHIDClient(hidConfig HIDConfig) (hid.Device, error) {
+func CreateHIDClient(hidConfig HIDBridgeConfig) (hid.Device, error) {
 	deviceInfos, err := hid.Enumerate(hidConfig.VendorID, hidConfig.ProductID)
 	if err != nil {
 		slog.Error("Could not enumerate HID devices", "hidConfig", hidConfig)
@@ -59,7 +61,7 @@ func CreateHIDClient(hidConfig HIDConfig) (hid.Device, error) {
 	return device, nil
 }
 
-func NewHIDMQTTBridge(hidConfig HIDConfig, mqttClient mqtt.Client, topicPrefix string) (*HIDMQTTBridge, error) {
+func NewHIDMQTTBridge(hidConfig HIDBridgeConfig, mqttClient mqtt.Client, topicPrefix string) (*HIDMQTTBridge, error) {
 
 	hidDevice, err := CreateHIDClient(hidConfig)
 	if err != nil {
@@ -72,6 +74,7 @@ func NewHIDMQTTBridge(hidConfig HIDConfig, mqttClient mqtt.Client, topicPrefix s
 			TopicPrefix: topicPrefix,
 		},
 		HIDDevice: hidDevice,
+		HIDConfig: hidConfig,
 	}
 
 	// funcs := map[string]func(client mqtt.Client, message mqtt.Message){
@@ -96,18 +99,19 @@ func (bridge *HIDMQTTBridge) EventLoop(ctx context.Context) {
 			continue
 		}
 
-		data := buf[:n]
-		nativeReport, _ := CreateNativeHIDReport(data)
-		readableReport1 := nativeReport.ToReadableHIDReport()
-		readableReport2, _ := CreateReadableHIDReport(data)
+		bytes := buf[:n]
 
-		nativeJSON, _ := nativeReport.ToJSON()
-		readableJSON1, _ := readableReport1.ToJSON()
-		readableJSON2, _ := readableReport2.ToJSON()
-		slog.Info("HID report", "hidReport", nativeJSON)
-		slog.Info("Readable HID report 1", "readableHID", readableJSON1)
-		slog.Info("Readable HID report 2", "readableHID", readableJSON2)
-		bridge.PublishMQTT("hid/device/data", string(data), false)
+		if bridge.HIDConfig.PublishBytes {
+			bridge.PublishBytesMQTT("hid/device/bytes", bytes, false)
+		}
+		if bridge.HIDConfig.PublishNative {
+			nativeReport, _ := CreateNativeHIDReport(bytes)
+			bridge.PublishJSONMQTT("hid/device/native", nativeReport, false)
+		}
+		if bridge.HIDConfig.PublishReadable {
+			readableReport, _ := CreateReadableHIDReport(bytes)
+			bridge.PublishJSONMQTT("hid/device/readable", readableReport, false)
+		}
 		time.Sleep(100 * time.Millisecond)
 	}
 }

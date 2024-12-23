@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -383,14 +382,6 @@ func (hid *ReadableHIDReport) ToNativeHIDReport() NativeHIDReport {
 	}
 }
 
-func (readableReport *ReadableHIDReport) ToJSON() (string, error) {
-	jsonData, err := json.Marshal(readableReport)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonData), nil
-}
-
 // NativeHIDReport represents a HID report using native types.
 type NativeHIDReport struct {
 	Modifiers byte  `json:"modifiers"`
@@ -417,13 +408,13 @@ func byteSliceToIntSlice(b []byte) []int {
 	return intSlice
 }
 
-func (nativeReport *NativeHIDReport) ToJSON() (string, error) {
-	jsonData, err := json.Marshal(nativeReport)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonData), nil
-}
+// func (nativeReport *NativeHIDReport) ToJSON() (string, error) {
+// 	jsonData, err := json.Marshal(nativeReport)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	return string(jsonData), nil
+// }
 
 func (native *NativeHIDReport) ToReadableHIDReport() ReadableHIDReport {
 	modifierNames := []string{}
