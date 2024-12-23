@@ -2,7 +2,6 @@ package lib
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"regexp"
 	"sync"
@@ -77,7 +76,7 @@ func (bridge *SnapcastMQTTBridge) onGroupStreamSet(client mqtt.Client, message m
 		streamId := string(message.Payload())
 		if streamId != "" {
 
-			bridge.PublishMQTT("snapcast/group/"+groupId+"/stream/set", "", false)
+			bridge.PublishStringMQTT("snapcast/group/"+groupId+"/stream/set", "", false)
 
 			res, err := bridge.SnapClient.Send(context.Background(), snapcast.MethodGroupSetStream,
 				&snapcast.GroupSetStreamRequest{ID: groupId, StreamID: streamId})
@@ -113,7 +112,7 @@ func (bridge *SnapcastMQTTBridge) onClientStreamSet(client mqtt.Client, message 
 			}
 			groupId := client.GroupID
 
-			bridge.PublishMQTT("snapcast/client/"+clientId+"/stream/set", "", false)
+			bridge.PublishStringMQTT("snapcast/client/"+clientId+"/stream/set", "", false)
 
 			res, err := bridge.SnapClient.Send(context.Background(), snapcast.MethodGroupSetStream,
 				&snapcast.GroupSetStreamRequest{ID: groupId, StreamID: streamId})
@@ -163,12 +162,7 @@ func (bridge *SnapcastMQTTBridge) publishStreamStatus(streamStatus SnapcastStrea
 	}
 
 	if publish {
-		jsonData, err := json.MarshalIndent(streamStatus, "", "    ")
-		if err != nil {
-			slog.Error("Failed to create json for stream", "error", err, "stream", streamStatus)
-			return
-		}
-		bridge.PublishMQTT("snapcast/stream/"+streamStatus.StreamID, string(jsonData), true)
+		bridge.PublishJSONMQTT("snapcast/stream/"+streamStatus.StreamID, streamStatus, true)
 	}
 }
 
@@ -182,12 +176,7 @@ func (bridge *SnapcastMQTTBridge) publishClientStatus(clientStatus SnapcastClien
 	}
 
 	if publish {
-		jsonData, err := json.MarshalIndent(clientStatus, "", "    ")
-		if err != nil {
-			slog.Error("Failed to create json for client", "error", err, "client", clientStatus.ClientID)
-			return
-		}
-		bridge.PublishMQTT("snapcast/client/"+clientStatus.ClientID, string(jsonData), true)
+		bridge.PublishJSONMQTT("snapcast/client/"+clientStatus.ClientID, clientStatus, true)
 	}
 }
 
@@ -201,12 +190,7 @@ func (bridge *SnapcastMQTTBridge) publishGroupStatus(groupStatus SnapcastGroup) 
 	}
 
 	if publish {
-		jsonData, err := json.MarshalIndent(groupStatus, "", "    ")
-		if err != nil {
-			slog.Error("Failed to create json for group", "error", err, "group", groupStatus.GroupID)
-			return
-		}
-		bridge.PublishMQTT("snapcast/group/"+groupStatus.GroupID, string(jsonData), true)
+		bridge.PublishJSONMQTT("snapcast/group/"+groupStatus.GroupID, groupStatus, true)
 	}
 }
 

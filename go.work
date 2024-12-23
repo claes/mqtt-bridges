@@ -4,10 +4,12 @@ use (
 	./common
 	
 	./cec-mqtt
+	./mpd-mqtt
 	./bluez-mqtt
 	./pulseaudio-mqtt
 	./rotel-mqtt
 	./routeros-mqtt
 	./samsungtv-mqtt
 	./snapcast-mqtt
+	./hid-mqtt
 )

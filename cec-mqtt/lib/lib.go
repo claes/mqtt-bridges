@@ -80,11 +80,11 @@ func (bridge *CECMQTTBridge) initialize() {
 			"physicalAddress", value.PhysicalAddress,
 			"powerStatus", value.PowerStatus,
 			"vendor", value.Vendor)
-		bridge.PublishMQTT("cec/source/"+strconv.Itoa(value.LogicalAddress)+"/active",
+		bridge.PublishStringMQTT("cec/source/"+strconv.Itoa(value.LogicalAddress)+"/active",
 			strconv.FormatBool(value.ActiveSource), true)
-		bridge.PublishMQTT("cec/source/"+strconv.Itoa(value.LogicalAddress)+"/name",
+		bridge.PublishStringMQTT("cec/source/"+strconv.Itoa(value.LogicalAddress)+"/name",
 			value.OSDName, true)
-		bridge.PublishMQTT("cec/source/"+strconv.Itoa(value.LogicalAddress)+"/power",
+		bridge.PublishStringMQTT("cec/source/"+strconv.Itoa(value.LogicalAddress)+"/power",
 			value.PowerStatus, true)
 	}
 }
@@ -98,7 +98,7 @@ func (bridge *CECMQTTBridge) PublishCommands(ctx context.Context) {
 			return
 		case command := <-bridge.CECConnection.Commands:
 			slog.Debug("Create command", "command", command.CommandString)
-			bridge.PublishMQTT("cec/command/rx", command.CommandString, false)
+			bridge.PublishStringMQTT("cec/command/rx", command.CommandString, false)
 		}
 	}
 }
@@ -114,7 +114,7 @@ func (bridge *CECMQTTBridge) PublishKeyPresses(ctx context.Context) {
 		case keyPress := <-bridge.CECConnection.KeyPresses:
 			slog.Debug("Key press", "keyCode", keyPress.KeyCode, "duration", keyPress.Duration)
 			if keyPress.Duration == 0 {
-				bridge.PublishMQTT("cec/key", strconv.Itoa(keyPress.KeyCode), false)
+				bridge.PublishStringMQTT("cec/key", strconv.Itoa(keyPress.KeyCode), false)
 			}
 		}
 	}
@@ -132,7 +132,7 @@ func (bridge *CECMQTTBridge) PublishSourceActivations(ctx context.Context) {
 			slog.Debug("Source activation",
 				"logicalAddress", sourceActivation.LogicalAddress,
 				"state", sourceActivation.State)
-			bridge.PublishMQTT("cec/source/"+strconv.Itoa(sourceActivation.LogicalAddress)+"/active",
+			bridge.PublishStringMQTT("cec/source/"+strconv.Itoa(sourceActivation.LogicalAddress)+"/active",
 				strconv.FormatBool(sourceActivation.State), true)
 		}
 	}
@@ -156,7 +156,7 @@ func (bridge *CECMQTTBridge) PublishMessages(ctx context.Context, logOnly bool) 
 		case message := <-bridge.CECConnection.Messages:
 			slog.Debug("Message", "message", message)
 			if !logOnly {
-				bridge.PublishMQTT("cec/message", message, false)
+				bridge.PublishStringMQTT("cec/message", message, false)
 			}
 			matches := regex.FindStringSubmatch(message)
 			if matches != nil {
@@ -164,9 +164,9 @@ func (bridge *CECMQTTBridge) PublishMessages(ctx context.Context, logOnly bool) 
 				hexPart := matches[2]
 				slog.Debug("CEC Message payload match", "prefix", prefix, "hex", hexPart)
 				if prefix == "<<" {
-					bridge.PublishMQTT("cec/message/hex/rx", hexPart, true)
+					bridge.PublishStringMQTT("cec/message/hex/rx", hexPart, true)
 				} else if prefix == ">>" {
-					bridge.PublishMQTT("cec/message/hex/tx", hexPart, true)
+					bridge.PublishStringMQTT("cec/message/hex/tx", hexPart, true)
 				}
 			}
 		}
@@ -182,7 +182,7 @@ func (bridge *CECMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Mess
 	}
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("cec/command/tx", "", false)
+		bridge.PublishStringMQTT("cec/command/tx", "", false)
 		slog.Debug("Sending command", "command", command)
 		bridge.CECConnection.Transmit(command)
 	}
@@ -203,7 +203,7 @@ func (bridge *CECMQTTBridge) onKeySend(client mqtt.Client, message mqtt.Message)
 	address := payload["address"].(float64)
 	key := payload["key"].(string)
 	if key != "" {
-		bridge.PublishMQTT("cec/key/send", "", false)
+		bridge.PublishStringMQTT("cec/key/send", "", false)
 		slog.Debug("Sending key", "address", address, "key", key)
 		bridge.CECConnection.Key(int(address), key)
 	}

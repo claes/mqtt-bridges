@@ -2,7 +2,6 @@ package lib
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"sync"
 	"time"
@@ -111,7 +110,7 @@ func (bridge *RotelMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Me
 	// https://www.rotel.com/sites/default/files/product/rs232/RA12%20Protocol.pdf
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("rotel/command/send", "", false)
+		bridge.PublishStringMQTT("rotel/command/send", "", false)
 		bridge.SendSerialRequest(command)
 	}
 }
@@ -119,7 +118,7 @@ func (bridge *RotelMQTTBridge) onCommandSend(client mqtt.Client, message mqtt.Me
 func (bridge *RotelMQTTBridge) onInitialize(client mqtt.Client, message mqtt.Message) {
 	command := string(message.Payload())
 	if command != "" {
-		bridge.PublishMQTT("rotel/command/initialize", "", false)
+		bridge.PublishStringMQTT("rotel/command/initialize", "", false)
 		bridge.initialize(true)
 	}
 }
@@ -143,12 +142,7 @@ func (bridge *RotelMQTTBridge) EventLoop(ctx context.Context) {
 			}
 			bridge.ProcessRotelData(string(buf[:n]))
 
-			jsonState, err := json.Marshal(bridge.State)
-			if err != nil {
-				slog.Error("Error marshalling state", "state", bridge.State)
-				continue
-			}
-			bridge.PublishMQTT("rotel/state", string(jsonState), true)
+			bridge.PublishJSONMQTT("rotel/state", bridge.State, true)
 		}
 	}
 }

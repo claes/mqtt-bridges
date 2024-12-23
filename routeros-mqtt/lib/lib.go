@@ -3,7 +3,6 @@ package lib
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -22,9 +21,8 @@ type WifiClient struct {
 }
 
 type RouterOSMQTTBridge struct {
-	MqttClient           mqtt.Client
+	common.BaseMQTTBridge
 	RouterOSClient       *routeros.Client
-	TopicPrefix          string
 	RouterOSClientConfig RouterOSClientConfig
 }
 
@@ -48,19 +46,16 @@ func NewRouterOSMQTTBridge(routerOSConfig RouterOSClientConfig, mqttClient mqtt.
 	}
 
 	bridge := &RouterOSMQTTBridge{
-		MqttClient:           mqttClient,
+		BaseMQTTBridge: common.BaseMQTTBridge{
+			MQTTClient:  mqttClient,
+			TopicPrefix: topicPrefix,
+		},
 		RouterOSClient:       routerOSClient,
-		TopicPrefix:          topicPrefix,
 		RouterOSClientConfig: routerOSConfig,
 	}
 
 	routerOSClient.Listen()
 	return bridge, nil
-}
-
-func (bridge *RouterOSMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
-	token := bridge.MqttClient.Publish(common.Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
-	token.Wait()
 }
 
 func (bridge *RouterOSMQTTBridge) EventLoop(ctx context.Context) {
@@ -103,13 +98,8 @@ func (bridge *RouterOSMQTTBridge) retrieveRegistrationTable() error {
 			}
 			clients = append(clients, client)
 		}
-		jsonData, err := json.MarshalIndent(clients, "", "    ")
-		if err != nil {
-			slog.Error("Failed to create json", "error", err)
-			return err
-		}
-		bridge.PublishMQTT("routeros/wificlients", string(jsonData), false)
-		bridge.MqttClient.IsConnected()
+		bridge.PublishJSONMQTT("routeros/wificlients", clients, false)
+		// bridge.MqttClient.IsConnected() why was this needed?
 	}
 	return nil
 }

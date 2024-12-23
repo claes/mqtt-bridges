@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"encoding/json"
 	"log/slog"
 	"strings"
 
@@ -25,8 +26,23 @@ func CreateMQTTClient(mqttBroker string) (mqtt.Client, error) {
 	return client, nil
 }
 
-func (bridge *BaseMQTTBridge) PublishMQTT(subtopic string, message string, retained bool) {
+func (bridge *BaseMQTTBridge) PublishStringMQTT(subtopic string, message string, retained bool) {
 	token := bridge.MQTTClient.Publish(Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
+	token.Wait()
+}
+
+func (bridge *BaseMQTTBridge) PublishBytesMQTT(subtopic string, message []byte, retained bool) {
+	token := bridge.MQTTClient.Publish(Prefixify(bridge.TopicPrefix, subtopic), 0, retained, message)
+	token.Wait()
+}
+
+func (bridge *BaseMQTTBridge) PublishJSONMQTT(subtopic string, obj any, retained bool) {
+	jsonData, err := json.Marshal(obj)
+	if err != nil {
+		slog.Error("Error marshalling object to publish", "error", err, "obj", obj)
+		return
+	}
+	token := bridge.MQTTClient.Publish(Prefixify(bridge.TopicPrefix, subtopic), 0, retained, string(jsonData))
 	token.Wait()
 }
 
