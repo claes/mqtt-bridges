@@ -63,7 +63,6 @@ func main() {
 	}
 
 	bridge, err := hidmqtt.NewHIDMQTTBridge(hidConfig, mqttClient, *topicPrefix)
-
 	if err != nil {
 		slog.Error("Error creating HID-MQTT bridge", "error", err)
 		os.Exit(1)

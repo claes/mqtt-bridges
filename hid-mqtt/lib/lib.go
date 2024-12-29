@@ -56,7 +56,7 @@ func CreateHIDClient(hidConfig HIDBridgeConfig) (hid.Device, error) {
 	for i, deviceInfo := range deviceInfos {
 		device, err = deviceInfo.Open()
 		if err != nil {
-			slog.Error("Could not open hid device", "error", err, "hidConfig", hidConfig, "device", device)
+			slog.Error("Could not open hid device", "error", err, "hidConfig", hidConfig, "device", device, "HID Number", i)
 		} else {
 			slog.Info("Opened device", "device", device, "HID Number", i)
 			if device != nil {
