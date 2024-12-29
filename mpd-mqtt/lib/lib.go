@@ -17,7 +17,7 @@ import (
 
 type MpdMQTTBridge struct {
 	common.BaseMQTTBridge
-	MPDClient       mpd.Client
+	MPDClient       *mpd.Client
 	PlaylistWatcher mpd.Watcher
 	sendMutex       sync.Mutex
 }
@@ -58,7 +58,7 @@ func NewMpdMQTTBridge(config MpdClientConfig, mqttClient mqtt.Client, topicPrefi
 			MQTTClient:  mqttClient,
 			TopicPrefix: topicPrefix,
 		},
-		MPDClient:       *mpdClient,
+		MPDClient:       mpdClient,
 		PlaylistWatcher: *watcher,
 	}
 
@@ -164,16 +164,18 @@ func (bridge *MpdMQTTBridge) EventLoop(ctx context.Context) {
 func (bridge *MpdMQTTBridge) DetectReconnectMPDClient(config MpdClientConfig) {
 	for {
 		time.Sleep(10 * time.Second)
-		err := bridge.MPDClient.Ping()
-		if err != nil {
-			slog.Error("Ping error, reconnecting", "error", err)
-			mpdClient, watcher, err := CreateMPDClient(config)
-			if err == nil {
-				bridge.MPDClient = *mpdClient
-				bridge.PlaylistWatcher = *watcher
-				slog.Error("Reconnected")
-			} else {
-				slog.Error("Ping when reconnecting", "error", err)
+		if bridge.MPDClient != nil {
+			err := bridge.MPDClient.Ping()
+			if err != nil {
+				slog.Error("Ping error, reconnecting", "error", err)
+				mpdClient, watcher, err := CreateMPDClient(config)
+				if err == nil {
+					bridge.MPDClient = mpdClient
+					bridge.PlaylistWatcher = *watcher
+					slog.Error("Reconnected")
+				} else {
+					slog.Error("Ping when reconnecting", "error", err)
+				}
 			}
 		}
 	}
