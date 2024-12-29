@@ -52,13 +52,24 @@ func CreateHIDClient(hidConfig HIDBridgeConfig) (hid.Device, error) {
 			slog.Int("Interface", deviceInfo.Interface),
 		)
 	}
-	device, err := deviceInfos[0].Open()
-	if err != nil {
-		slog.Error("Could not open hid device", "error", err, "hidConfig", hidConfig, "device", device)
-		return nil, err
+	var device hid.Device
+	for i, deviceInfo := range deviceInfos {
+		device, err = deviceInfo.Open()
+		if err != nil {
+			slog.Error("Could not open hid device", "error", err, "hidConfig", hidConfig, "device", device)
+		} else {
+			slog.Info("Opened device", "device", device, "HID Number", i)
+			if device != nil {
+				break
+			}
+		}
 	}
-	slog.Info("Opened device", "device", device)
-	return device, nil
+	if device == nil {
+		slog.Error("No hid device could be opened")
+		return nil, errors.New("No hid device could be opened")
+	} else {
+		return device, nil
+	}
 }
 
 func NewHIDMQTTBridge(hidConfig HIDBridgeConfig, mqttClient mqtt.Client, topicPrefix string) (*HIDMQTTBridge, error) {
