@@ -15,13 +15,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Defacto2/magicnumber"
 	common "github.com/claes/mqtt-bridges/common"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/flac"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
-	"github.com/gopxl/beep/wav"
+	"github.com/gopxl/beep/vorbis"
 )
 
 type AudioMQTTBridge struct {
@@ -74,7 +75,34 @@ func (bridge *AudioMQTTBridge) onPlayURL(client mqtt.Client, message mqtt.Messag
 	}
 }
 
+func detectAudioTypeFromURL(url string) (magicnumber.Signature, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return magicnumber.Unknown, err
+	}
+	defer resp.Body.Close()
+
+	// Read only the first 1024 bytes
+	const sniffSize = 1024
+	buf := make([]byte, sniffSize)
+	n, err := io.ReadFull(resp.Body, buf)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		return magicnumber.Unknown, err
+	}
+	buf = buf[:n]
+
+	reader := bytes.NewReader(buf)
+
+	return magicnumber.Find(reader), nil
+}
+
 func (bridge *AudioMQTTBridge) playAudio(audioSource string) error {
+
+	signature, err := detectAudioTypeFromURL(audioSource)
+	if err != nil {
+		return fmt.Errorf("Cannot detect audio type for %s, %v", audioSource, err)
+	}
+
 	reader, closer, err := bridge.openAudioSource(audioSource)
 	defer closer()
 
@@ -83,35 +111,35 @@ func (bridge *AudioMQTTBridge) playAudio(audioSource string) error {
 	}
 
 	buffered := bufio.NewReader(reader)
-	rc := &readCloser{
-		Reader: buffered,
-		closer: closer,
-	}
-	header, err := buffered.Peek(512)
-
-	formatType := detectAudioFormat(header)
 
 	var (
 		streamer beep.StreamSeekCloser
 		format   beep.Format
 	)
+	rc := &readCloser{
+		Reader: buffered,
+		closer: closer,
+	}
+	defer rc.Close()
 
-	switch formatType {
-	case "mp3":
+	switch signature.String() {
+	case "MP3 audio":
 		streamer, format, err = mp3.Decode(rc)
-	case "wav":
-		streamer, format, err = wav.Decode(buffered)
-	case "flac":
+	case "Ogg audio":
+		streamer, format, err = vorbis.Decode(rc)
+	case "FLAC audio":
 		streamer, format, err = flac.Decode(buffered)
 	default:
-		return fmt.Errorf("%s not a supported audio format", formatType)
+		return fmt.Errorf("%s not a supported audio format", signature.String())
 	}
+
 	if err != nil {
 		return err
 	}
 	defer streamer.Close()
 
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
 	done := make(chan bool)
 	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
 		done <- true
@@ -147,31 +175,6 @@ func (bridge *AudioMQTTBridge) openAudioSource(src string) (io.Reader, func(), e
 		return resp.Body, func() { resp.Body.Close() }, nil
 	}
 	return nil, func() {}, fmt.Errorf("%s not a supported protocol", src)
-}
-
-func detectAudioFormat(header []byte) string {
-	// Check for WAV: "RIFF" at the start and "WAVE" at bytes 8-11
-	if len(header) >= 12 && bytes.Equal(header[:4], []byte("RIFF")) && bytes.Equal(header[8:12], []byte("WAVE")) {
-		return "wav"
-	}
-
-	// Check for FLAC: "fLaC" at the start
-	if len(header) >= 4 && bytes.Equal(header[:4], []byte("fLaC")) {
-		return "flac"
-	}
-
-	// Check for MP3: "ID3" at the start or frame sync (FFEx) anywhere in the header
-	if len(header) >= 3 && bytes.Equal(header[:3], []byte("ID3")) {
-		return "mp3"
-	}
-	for i := 0; i < len(header)-1; i++ {
-		if header[i] == 0xFF && (header[i+1]&0xE0) == 0xE0 {
-			return "mp3"
-		}
-	}
-
-	// Unknown format
-	return ""
 }
 
 func (bridge *AudioMQTTBridge) EventLoop(ctx context.Context) {
