@@ -75,30 +75,23 @@ func (bridge *AudioMQTTBridge) onPlayURL(client mqtt.Client, message mqtt.Messag
 	}
 }
 
-func detectAudioTypeFromURL(url string) (magicnumber.Signature, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return magicnumber.Unknown, err
-	}
-	defer resp.Body.Close()
-
+func detectAudioTypeFromURL(reader io.Reader) (magicnumber.Signature, error) {
 	// Read only the first 1024 bytes
 	const sniffSize = 1024
 	buf := make([]byte, sniffSize)
-	n, err := io.ReadFull(resp.Body, buf)
+	n, err := io.ReadFull(reader, buf)
 	if err != nil && err != io.ErrUnexpectedEOF {
 		return magicnumber.Unknown, err
 	}
-	buf = buf[:n]
-
-	reader := bytes.NewReader(buf)
-
-	return magicnumber.Find(reader), nil
+	return magicnumber.Find(bytes.NewReader(buf[:n])), nil
 }
 
 func (bridge *AudioMQTTBridge) playAudio(audioSource string) error {
 
-	signature, err := detectAudioTypeFromURL(audioSource)
+	detectorReader, detectorCloser, err := bridge.openAudioSource(audioSource)
+	defer detectorCloser()
+
+	signature, err := detectAudioTypeFromURL(detectorReader)
 	if err != nil {
 		return fmt.Errorf("Cannot detect audio type for %s, %v", audioSource, err)
 	}
