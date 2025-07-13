@@ -23,6 +23,7 @@ import (
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
 	"github.com/gopxl/beep/vorbis"
+	"github.com/gopxl/beep/wav"
 )
 
 type AudioMQTTBridge struct {
@@ -75,21 +76,13 @@ func (bridge *AudioMQTTBridge) onPlayURL(client mqtt.Client, message mqtt.Messag
 	}
 }
 
-func detectAudioTypeFromURL(reader io.Reader) (magicnumber.Signature, error) {
-	// Read only the first 1024 bytes
-	const sniffSize = 1024
-	buf := make([]byte, sniffSize)
-	n, err := io.ReadFull(reader, buf)
-	if err != nil && err != io.ErrUnexpectedEOF {
-		return magicnumber.Unknown, err
-	}
-	return magicnumber.Find(bytes.NewReader(buf[:n])), nil
-}
-
 func (bridge *AudioMQTTBridge) playAudio(audioSource string) error {
 
 	detectorReader, detectorCloser, err := bridge.openAudioSource(audioSource)
 	defer detectorCloser()
+	if err != nil {
+		return fmt.Errorf("Cannot open stream for audio source %s, %v", audioSource, err)
+	}
 
 	signature, err := detectAudioTypeFromURL(detectorReader)
 	if err != nil {
@@ -114,10 +107,12 @@ func (bridge *AudioMQTTBridge) playAudio(audioSource string) error {
 		closer: closer,
 	}
 	defer rc.Close()
-
+	fmt.Println("si" + signature.String())
 	switch signature.String() {
 	case "MP3 audio":
 		streamer, format, err = mp3.Decode(rc)
+	case "Wave audio":
+		streamer, format, err = wav.Decode(buffered)
 	case "Ogg audio":
 		streamer, format, err = vorbis.Decode(rc)
 	case "FLAC audio":
@@ -168,6 +163,16 @@ func (bridge *AudioMQTTBridge) openAudioSource(src string) (io.Reader, func(), e
 		return resp.Body, func() { resp.Body.Close() }, nil
 	}
 	return nil, func() {}, fmt.Errorf("%s not a supported protocol", src)
+}
+
+func detectAudioTypeFromURL(reader io.Reader) (magicnumber.Signature, error) {
+	const sniffSize = 1024
+	buf := make([]byte, sniffSize)
+	n, err := io.ReadFull(reader, buf)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		return magicnumber.Unknown, err
+	}
+	return magicnumber.Find(bytes.NewReader(buf[:n])), nil
 }
 
 func (bridge *AudioMQTTBridge) EventLoop(ctx context.Context) {

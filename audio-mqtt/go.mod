@@ -14,7 +14,6 @@ require (
 require (
 	github.com/ebitengine/oto/v3 v3.3.2 // indirect
 	github.com/ebitengine/purego v0.8.0 // indirect
-	github.com/gopxl/beep/v2 v2.1.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/icza/bitio v1.1.0 // indirect
