@@ -30,6 +30,11 @@ type AudioMQTTBridge struct {
 	common.BaseMQTTBridge
 	embeddedFiles embed.FS
 	sendMutex     sync.Mutex
+	AudioConfig   AudioConfig
+}
+
+type AudioConfig struct {
+	EmbeddedFiles embed.FS
 }
 
 type readCloser struct {
@@ -42,12 +47,13 @@ func (rc *readCloser) Close() error {
 	return nil
 }
 
-func NewAudioMQTTBridge(mqttClient mqtt.Client, topicPrefix string) (*AudioMQTTBridge, error) {
+func NewAudioMQTTBridge(audioConfig AudioConfig, mqttClient mqtt.Client, topicPrefix string) (*AudioMQTTBridge, error) {
 	bridge := &AudioMQTTBridge{
 		BaseMQTTBridge: common.BaseMQTTBridge{
 			MQTTClient:  mqttClient,
 			TopicPrefix: topicPrefix,
 		},
+		AudioConfig: audioConfig,
 	}
 
 	funcs := map[string]func(client mqtt.Client, message mqtt.Message){
@@ -139,7 +145,7 @@ func (bridge *AudioMQTTBridge) playAudio(audioSource string) error {
 func (bridge *AudioMQTTBridge) openAudioSource(src string) (io.Reader, func(), error) {
 	if strings.HasPrefix(src, "embed://") {
 		path := strings.TrimPrefix(src, "embed://")
-		file, err := bridge.embeddedFiles.Open(path)
+		file, err := bridge.AudioConfig.EmbeddedFiles.Open(path)
 		if err != nil {
 			return nil, func() {}, fmt.Errorf("Could not open embedded path %s, %v", path, err)
 		}

@@ -39,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	bridge, err := lib.NewAudioMQTTBridge(mqttClient, *topicPrefix)
+	bridge, err := lib.NewAudioMQTTBridge(lib.AudioConfig{}, mqttClient, *topicPrefix)
 	if err != nil {
 		slog.Error("Error creating AudioMQTTBridge bridge", "error", err)
 		os.Exit(1)
