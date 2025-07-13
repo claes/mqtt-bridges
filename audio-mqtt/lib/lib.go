@@ -150,8 +150,18 @@ func (bridge *AudioMQTTBridge) openAudioSource(src string) (io.Reader, func(), e
 }
 
 func detectAudioFormat(header []byte) string {
-	// MP3: "ID3" in start of frame sync (FFEx) anywhere in header
-	if len(header) > 3 && bytes.Equal(header[:3], []byte("ID3")) {
+	// Check for WAV: "RIFF" at the start and "WAVE" at bytes 8-11
+	if len(header) >= 12 && bytes.Equal(header[:4], []byte("RIFF")) && bytes.Equal(header[8:12], []byte("WAVE")) {
+		return "wav"
+	}
+
+	// Check for FLAC: "fLaC" at the start
+	if len(header) >= 4 && bytes.Equal(header[:4], []byte("fLaC")) {
+		return "flac"
+	}
+
+	// Check for MP3: "ID3" at the start or frame sync (FFEx) anywhere in the header
+	if len(header) >= 3 && bytes.Equal(header[:3], []byte("ID3")) {
 		return "mp3"
 	}
 	for i := 0; i < len(header)-1; i++ {
@@ -160,15 +170,7 @@ func detectAudioFormat(header []byte) string {
 		}
 	}
 
-	// WAV: "RIFF" + ... + "WAVE"
-	if len(header) > 12 && bytes.Equal(header[:4], []byte("RIFF")) && bytes.Equal(header[8:12], []byte("WAVE")) {
-		return "wav"
-	}
-
-	// FLAC: "fLaC"
-	if len(header) > 4 && bytes.Equal(header[:4], []byte("fLaC")) {
-		return "flac"
-	}
+	// Unknown format
 	return ""
 }
 
