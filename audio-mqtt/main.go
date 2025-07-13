@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 
 	common "github.com/claes/mqtt-bridges/common"
 
@@ -37,23 +39,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, err = lib.NewAudioMQTTBridge(mqttClient, *topicPrefix)
-	//bridge, err := lib.NewAudioMQTTBridge(mqttClient, *topicPrefix)
+	bridge, err := lib.NewAudioMQTTBridge(mqttClient, *topicPrefix)
 	if err != nil {
 		slog.Error("Error creating AudioMQTTBridge bridge", "error", err)
 		os.Exit(1)
 	}
 
-	// c := make(chan os.Signal, 1)
-	// signal.Notify(c, os.Interrupt)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
 
-	// ctx := context.TODO()
+	ctx := context.TODO()
 
-	// fmt.Printf("Started\n")
-	// go bridge.EventLoop(ctx)
-	// <-c
-	// bridge.Controller.Close()
-	// fmt.Printf("Shut down\n")
+	fmt.Printf("Started\n")
+	go bridge.EventLoop(ctx)
+	<-c
+	fmt.Printf("Shut down\n")
 
 	os.Exit(0)
 }

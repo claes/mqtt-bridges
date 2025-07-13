@@ -3,6 +3,7 @@ package lib
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"io"
@@ -169,4 +170,14 @@ func detectAudioFormat(header []byte) string {
 		return "flac"
 	}
 	return ""
+}
+
+func (bridge *AudioMQTTBridge) EventLoop(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("Closing down AudioMQTTBridge event loop")
+			return
+		}
+	}
 }
