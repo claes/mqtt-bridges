@@ -2,7 +2,7 @@
   description = "Samsung-MQTT";
 
   # Nixpkgs / NixOS version to use.
-  inputs.nixpkgs.url = "nixpkgs/nixos-23.11";
+  inputs.nixpkgs.url = "nixpkgs/nixos-25.05";
 
   outputs = {
     self,
