@@ -1,8 +1,9 @@
 module github.com/claes/mqtt-bridges/audio-mqtt
 
-go 1.24.1
+go 1.22.8
 
-toolchain go1.24.4
+toolchain go1.22.9
+
 
 require (
 	github.com/Defacto2/magicnumber v1.0.8
