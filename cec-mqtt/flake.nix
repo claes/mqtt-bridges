@@ -1,47 +1,47 @@
 {
   description = "CEC-MQTT";
 
-  # Nixpkgs / NixOS version to use.
-  inputs.nixpkgs.url = "nixpkgs/nixos-24.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-25.05";
+  # Use older version of nixos for libcec
+  inputs.nixpkgs_2411.url = "nixpkgs/nixos-24.11";
 
   outputs = {
     self,
     nixpkgs,
+    nixpkgs_2411,
   }: let
-    # to work with older version of flakes
     lastModifiedDate = self.lastModifiedDate or self.lastModified or "19700101";
-
-    # Generate a user-friendly version number.
     version = builtins.substring 0 8 lastModifiedDate;
-
-    # System types to support.
     supportedSystems = ["x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin"];
-
-    # Helper function to generate an attrset '{ x86_64-linux = f "x86_64-linux"; ... }'.
     forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-
-    # Nixpkgs instantiated for supported system types.
-    nixpkgsFor = forAllSystems (system: import nixpkgs {inherit system;});
+    nixpkgsFor = forAllSystems (
+      system: let
+        pkgs2411 = import nixpkgs_2411 {inherit system;};
+      in
+        import nixpkgs {
+          inherit system;
+          overlays = [
+            (final: prev: {
+              libcec = pkgs2411.libcec;
+              libcec_platform = pkgs2411.libcec_platform;
+            })
+          ];
+        }
+    );
   in {
-    # Provide some binary packages for selected system types.
     packages = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
     in {
       cec-mqtt = pkgs.buildGoModule {
         pname = "cec-mqtt";
         inherit version;
-
         src = ./.;
-
         nativeBuildInputs = [pkgs.pkg-config];
-
         buildInputs = [pkgs.libcec pkgs.libcec_platform];
-
-        vendorHash = "sha256-OnhGIS6fM5DlPDFNawM2Am/TWNnh56t32Vxp8EUqw0w=";
+        vendorHash = "sha256-uGhfR93Tj3EK0vqwgxGrAFW8XTLC8eQci0wPpSZ0b7U=";
       };
     });
 
-    # Add dependencies that are only needed for development
     devShells = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
     in {
@@ -63,9 +63,6 @@
       };
     });
 
-    # The default package for 'nix build'. This makes sense if the
-    # flake provides only one package or there is a clear "main"
-    # package.
     defaultPackage = forAllSystems (system: self.packages.${system}.cec-mqtt);
   };
 }

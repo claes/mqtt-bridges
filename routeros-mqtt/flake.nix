@@ -2,7 +2,7 @@
   description = "RouterOS-MQTT";
 
   # Nixpkgs / NixOS version to use.
-  inputs.nixpkgs.url = "nixpkgs/nixos-24.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-25.05";
 
   outputs = {
     self,
