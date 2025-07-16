@@ -26,11 +26,11 @@ type TelegramConfig struct {
 }
 
 type TelegramBot struct {
-	BotToken   string
-	LastChatID int64
+	telegramConfig TelegramConfig
+	tastChatID     int64
 }
 
-type TelegramToMqttPayload struct {
+type TelegramToMQTTPayload struct {
 	ChatID   int64  `json:"chat_id"`
 	Username string `json:"username"`
 	Text     string `json:"text"`
@@ -59,7 +59,7 @@ type TelegramMessage struct {
 func NewTelegramMQTTBridge(telegramConfig TelegramConfig, mqttClient mqtt.Client, topicPrefix string) (*TelegramMQTTBridge, error) {
 
 	bot := &TelegramBot{
-		BotToken: telegramConfig.BotToken,
+		telegramConfig: telegramConfig,
 	}
 
 	bridge := &TelegramMQTTBridge{
@@ -99,8 +99,8 @@ func (bridge *TelegramMQTTBridge) EventLoop(ctx context.Context) {
 			for _, update := range updates {
 				msg := update.Message
 				if msg.Text != "" {
-					bridge.telegramBot.LastChatID = msg.Chat.ID
-					telegramToMqttPayload := TelegramToMqttPayload{
+					bridge.telegramBot.tastChatID = msg.Chat.ID
+					telegramToMqttPayload := TelegramToMQTTPayload{
 						ChatID:   msg.Chat.ID,
 						Username: msg.From.Username,
 						Text:     msg.Text,
@@ -127,7 +127,7 @@ func (bridge *TelegramMQTTBridge) getUpdates(offset int) ([]TelegramUpdate, erro
 	telegramPollTimeoutSec := 10
 
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?timeout=%d&offset=%d",
-		url.QueryEscape(bridge.telegramBot.BotToken), telegramPollTimeoutSec, offset)
+		url.QueryEscape(bridge.telegramBot.telegramConfig.BotToken), telegramPollTimeoutSec, offset)
 	resp, err := http.Get(apiURL)
 	if err != nil {
 		return nil, err
@@ -149,16 +149,17 @@ func (bridge *TelegramMQTTBridge) getUpdates(offset int) ([]TelegramUpdate, erro
 }
 
 func (bridge *TelegramMQTTBridge) onSendTelegramMessage(client mqtt.Client, message mqtt.Message) {
-	if bridge.telegramBot.LastChatID == 0 {
+	if bridge.telegramBot.tastChatID == 0 {
 		slog.Error("No known chat ID yet; can't forward MQTT message to Telegram.")
 		return
 	}
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", url.QueryEscape(bridge.telegramBot.BotToken))
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage",
+		url.QueryEscape(bridge.telegramBot.telegramConfig.BotToken))
 
 	text := string(message.Payload())
 
 	postData := url.Values{}
-	postData.Set("chat_id", strconv.FormatInt(bridge.telegramBot.LastChatID, 10))
+	postData.Set("chat_id", strconv.FormatInt(bridge.telegramBot.tastChatID, 10))
 	postData.Set("text", text)
 
 	resp, err := http.PostForm(apiURL, postData)
