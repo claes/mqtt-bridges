@@ -1,5 +1,5 @@
 {
-  description = "Samsung-MQTT";
+  description = "Telegram-MQTT";
 
   # Nixpkgs / NixOS version to use.
   inputs.nixpkgs.url = "nixpkgs/nixos-25.05";
@@ -27,12 +27,16 @@
     packages = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
     in {
-      samsung-mqtt = pkgs.buildGoModule {
-        pname = "samsung-mqtt";
+      telegram-mqtt = pkgs.buildGoModule {
+        pname = "telegram-mqtt";
         inherit version;
         # In 'nix develop', we don't need a copy of the source tree
         # in the Nix store.
         src = ./.;
+
+        nativeBuildInputs = [];
+
+        buildInputs = [];
 
         # This hash locks the dependencies of this package. It is
         # necessary because of how Go requires network access to resolve
@@ -44,7 +48,7 @@
         # remeber to bump this hash when your dependencies change.
         #vendorSha256 = pkgs.lib.fakeSha256;
 
-        vendorHash = "sha256-GZLX9cHpjN7UmMqA+v7fizNbMz4sEWJIeKSuMwb8l+c=";
+        vendorHash = "sha256-p8jX5MKU1z2ntPKqQ+xBoWVcYRSRagcJqvbeAz4oZrk=";
       };
     });
 
@@ -60,6 +64,6 @@
     # The default package for 'nix build'. This makes sense if the
     # flake provides only one package or there is a clear "main"
     # package.
-    defaultPackage = forAllSystems (system: self.packages.${system}.samsung-mqtt);
+    defaultPackage = forAllSystems (system: self.packages.${system}.telegram-mqtt);
   };
 }
