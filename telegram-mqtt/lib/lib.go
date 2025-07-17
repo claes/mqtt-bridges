@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -22,12 +23,12 @@ type TelegramMQTTBridge struct {
 }
 
 type TelegramConfig struct {
-	BotToken string
+	BotToken       string
+	ChatNamesToIds map[string]int64
 }
 
 type TelegramBot struct {
 	telegramConfig TelegramConfig
-	tastChatID     int64
 }
 
 type TelegramToMQTTPayload struct {
@@ -70,15 +71,26 @@ func NewTelegramMQTTBridge(telegramConfig TelegramConfig, mqttClient mqtt.Client
 		telegramBot: bot,
 	}
 
-	funcs := map[string]func(client mqtt.Client, message mqtt.Message){
-		"telegram/send": bridge.onSendTelegramMessage,
-	}
-	for key, function := range funcs {
-		token := mqttClient.Subscribe(common.Prefixify(topicPrefix, key), 0, function)
+	for chatName, chatId := range telegramConfig.ChatNamesToIds {
+		topic := common.Prefixify(topicPrefix, "telegram/"+chatName+"/send")
+		token := mqttClient.Subscribe(topic, 0, bridge.onTelegramMessageSend)
+		if token.Error() != nil {
+			slog.Error("Error subscribing to topic", "topic", topic, "error", token.Error())
+			continue
+		}
+		slog.Info("Subscribed to topic", "topic", topic, "chatName", chatName, "chatId", chatId)
 		token.Wait()
 	}
-
 	return bridge, nil
+}
+
+func (bridge *TelegramMQTTBridge) findChatNameByID(chatID int64) (string, bool) {
+	for key, value := range bridge.telegramBot.telegramConfig.ChatNamesToIds {
+		if value == chatID {
+			return key, true
+		}
+	}
+	return "", false
 }
 
 func (bridge *TelegramMQTTBridge) EventLoop(ctx context.Context) {
@@ -98,8 +110,13 @@ func (bridge *TelegramMQTTBridge) EventLoop(ctx context.Context) {
 
 			for _, update := range updates {
 				msg := update.Message
+
+				chatName, found := bridge.findChatNameByID(msg.Chat.ID)
+				if !found {
+					slog.Warn("Chat ID not found in configuration", "chatID", msg.Chat.ID)
+					continue
+				}
 				if msg.Text != "" {
-					bridge.telegramBot.tastChatID = msg.Chat.ID
 					telegramToMqttPayload := TelegramToMQTTPayload{
 						ChatID:   msg.Chat.ID,
 						Username: msg.From.Username,
@@ -110,7 +127,7 @@ func (bridge *TelegramMQTTBridge) EventLoop(ctx context.Context) {
 						slog.Error("Error marshalling payload for publish to MQTT", "payload", telegramToMqttPayload)
 					}
 
-					token := bridge.MQTTClient.Publish("telegram/receive", 0, false, payload)
+					token := bridge.MQTTClient.Publish("telegram/"+chatName+"/receive", 0, false, payload)
 					token.Wait()
 					slog.Debug("Published message to MQTT", "payload", string(payload))
 				}
@@ -144,22 +161,44 @@ func (bridge *TelegramMQTTBridge) getUpdates(offset int) ([]TelegramUpdate, erro
 		return nil, err
 	}
 
-	slog.Info("Telegram getUpdates response body", "body", string(bodyBytes))
+	slog.Debug("Telegram getUpdates response", "body", string(bodyBytes))
 	return updatesResp.Result, nil
 }
 
-func (bridge *TelegramMQTTBridge) onSendTelegramMessage(client mqtt.Client, message mqtt.Message) {
-	if bridge.telegramBot.tastChatID == 0 {
-		slog.Error("No known chat ID yet; can't forward MQTT message to Telegram.")
+var chatNameRegex = regexp.MustCompile(`telegram/([^/]+)/send`)
+
+func getChatName(topic string) (string, bool) {
+	matches := chatNameRegex.FindStringSubmatch(topic)
+	if len(matches) == 2 {
+		return matches[1], true
+	}
+	return "", false
+}
+
+func (bridge *TelegramMQTTBridge) onTelegramMessageSend(client mqtt.Client, message mqtt.Message) {
+
+	bridge.sendMutex.Lock()
+	defer bridge.sendMutex.Unlock()
+
+	chatName, found := getChatName(message.Topic())
+	if !found {
+		slog.Error("Chat name not found in topic", "topic", message.Topic())
 		return
 	}
+	chatID, exists := bridge.telegramBot.telegramConfig.ChatNamesToIds[chatName]
+	if !exists {
+		slog.Error("Chat ID not found for chat name", "topic", message.Topic(), "chatName", chatName)
+		return
+	}
+
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage",
 		url.QueryEscape(bridge.telegramBot.telegramConfig.BotToken))
 
 	text := string(message.Payload())
 
+	slog.Info("Sending message to Telegram", "chatName", chatName, "chatID", chatID, "text", text, "x", strconv.FormatInt(chatID, 10))
 	postData := url.Values{}
-	postData.Set("chat_id", strconv.FormatInt(bridge.telegramBot.tastChatID, 10))
+	postData.Set("chat_id", strconv.FormatInt(chatID, 10))
 	postData.Set("text", text)
 
 	resp, err := http.PostForm(apiURL, postData)

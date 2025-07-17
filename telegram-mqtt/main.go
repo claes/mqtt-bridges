@@ -41,7 +41,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	bridge, err := lib.NewTelegramMQTTBridge(lib.TelegramConfig{BotToken: *telegramBotToken}, mqttClient, *topicPrefix)
+	config := lib.TelegramConfig{
+		BotToken: *telegramBotToken,
+		ChatNamesToIds: map[string]int64{
+			"gullepluttengroup": -4871527497,
+			"gulleplutten":      636971525},
+	}
+	bridge, err := lib.NewTelegramMQTTBridge(config, mqttClient, *topicPrefix)
 	if err != nil {
 		slog.Error("Error creating TelegramMQTTBridge bridge", "error", err)
 		os.Exit(1)
