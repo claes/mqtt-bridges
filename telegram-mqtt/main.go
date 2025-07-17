@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 
 	common "github.com/claes/mqtt-bridges/common"
 
@@ -21,6 +23,17 @@ func printHelp() {
 	flag.PrintDefaults()
 }
 
+type multiFlag []string
+
+func (m *multiFlag) String() string {
+	return strings.Join(*m, ",")
+}
+
+func (m *multiFlag) Set(value string) error {
+	*m = append(*m, value)
+	return nil
+}
+
 func main() {
 	mqttBroker := flag.String("broker", "tcp://localhost:1883", "MQTT broker URL")
 	topicPrefix := flag.String("topicPrefix", "", "MQTT topic prefix")
@@ -28,6 +41,22 @@ func main() {
 
 	help := flag.Bool("help", false, "Print help")
 	debug = flag.Bool("debug", false, "Debug logging")
+
+	var chatArgs multiFlag
+	flag.Var(&chatArgs, "chat", "Specify chat name to id mapping as name:id (can be used multiple times)")
+	flag.Parse()
+
+	chatNameToIds := make(map[string]int64)
+	for _, arg := range chatArgs {
+		parts := strings.SplitN(arg, ":", 2)
+		if len(parts) == 2 {
+			id, err := strconv.ParseInt(parts[1], 10, 64)
+			if err == nil {
+				chatNameToIds[parts[0]] = id
+			}
+		}
+	}
+
 	flag.Parse()
 
 	if *help {
@@ -42,10 +71,8 @@ func main() {
 	}
 
 	config := lib.TelegramConfig{
-		BotToken: *telegramBotToken,
-		ChatNamesToIds: map[string]int64{
-			"gullepluttengroup": -4871527497,
-			"gulleplutten":      636971525},
+		BotToken:       *telegramBotToken,
+		ChatNamesToIds: chatNameToIds,
 	}
 	bridge, err := lib.NewTelegramMQTTBridge(config, mqttClient, *topicPrefix)
 	if err != nil {
